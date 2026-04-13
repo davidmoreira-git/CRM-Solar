@@ -320,7 +320,11 @@ async function carregar() {
 
     projetosCache = isAdmin()
       ? data
-      : data.filter((projeto) => String(projeto.created_by) === String(currentUser?.id));
+      : data.filter(
+          (projeto) =>
+            String(projeto.created_by) === String(currentUser?.id) ||
+            String(projeto.owner_email || "").toLowerCase() === String(currentUser?.email || "").toLowerCase()
+        );
     aplicarFiltros();
 
     if (canManageUsers() && document.getElementById("usuariosOverlay").style.display === "block") {

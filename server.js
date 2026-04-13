@@ -705,8 +705,8 @@ app.post("/usuarios/:id/reset-password", authRequired, async (req, res) => {
 app.get("/projetos", authRequired, async (req, res) => {
   try {
     const canViewAll = hasPermission(req.user, "viewAllProjects");
-    const params = canViewAll ? [] : [req.user.id];
-    const whereClause = canViewAll ? "" : "WHERE created_by = $1";
+    const params = canViewAll ? [] : [Number(req.user.id)];
+    const whereClause = canViewAll ? "" : "WHERE created_by = $1::BIGINT";
 
     const result = await pool.query(
       `SELECT

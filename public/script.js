@@ -1,16 +1,51 @@
 const API = window.location.origin;
 const TOKEN_KEY = "crm_dm_token";
 const USER_KEY = "crm_dm_user";
+const ROLE_LABELS = {
+  admin: "Administrador",
+  operador: "Operador",
+  client: "Cliente",
+};
 
 let projetoDetalheAtual = null;
 let projetosCache = [];
+let usuariosCache = [];
 let authToken = localStorage.getItem(TOKEN_KEY) || "";
 let currentUser = JSON.parse(localStorage.getItem(USER_KEY) || "null");
 
 function setMensagem(elementId, message, type) {
   const element = document.getElementById(elementId);
+
+  if (!element) {
+    return;
+  }
+
   element.className = type ? `texto-${type}` : "";
   element.textContent = message || "";
+}
+
+function roleLabel(role) {
+  return ROLE_LABELS[role] || role || "-";
+}
+
+function isAdmin() {
+  return currentUser?.role === "admin";
+}
+
+function canManageUsers() {
+  return isAdmin();
+}
+
+function canCreateProject() {
+  return currentUser?.role === "admin" || currentUser?.role === "operador";
+}
+
+function canChangeStatus() {
+  return currentUser?.role === "admin" || currentUser?.role === "operador";
+}
+
+function canDeleteProject() {
+  return currentUser?.role === "admin" || currentUser?.role === "operador";
 }
 
 function salvarSessao(token, user) {
@@ -34,33 +69,65 @@ function atualizarUsuarioAtual() {
     return;
   }
 
-  usuarioAtual.textContent = currentUser ? `${currentUser.nome} (${currentUser.role})` : "";
+  usuarioAtual.textContent = currentUser ? `${currentUser.nome} (${roleLabel(currentUser.role)})` : "";
+}
+
+function atualizarPermissoesUI() {
+  const botaoNovoProjeto = document.getElementById("botaoNovoProjeto");
+  const botaoUsuarios = document.getElementById("botaoUsuarios");
+  const painelAvisoSenha = document.getElementById("avisoTrocaSenha");
+  const botaoExcluir = document.getElementById("botaoExcluirProjeto");
+
+  if (botaoNovoProjeto) {
+    botaoNovoProjeto.style.display = canCreateProject() ? "inline-flex" : "none";
+  }
+
+  if (botaoUsuarios) {
+    botaoUsuarios.style.display = canManageUsers() ? "inline-flex" : "none";
+  }
+
+  if (painelAvisoSenha) {
+    painelAvisoSenha.style.display = currentUser?.must_change_password ? "block" : "none";
+  }
+
+  if (botaoExcluir) {
+    botaoExcluir.style.display = canDeleteProject() ? "inline-flex" : "none";
+  }
 }
 
 function mostrarCRM() {
   document.getElementById("loginBox").style.display = "none";
   document.getElementById("crm").style.display = "block";
   atualizarUsuarioAtual();
+  atualizarPermissoesUI();
 }
 
 function mostrarLogin() {
   document.getElementById("loginBox").style.display = "flex";
   document.getElementById("crm").style.display = "none";
   fecharDetalhes();
+  fecharModalUsuarios();
+  fecharModalSenha();
   atualizarUsuarioAtual();
 }
 
 function mostrarPainelAuth(tipo) {
   const loginAtivo = tipo === "login";
+  const cadastroAtivo = tipo === "cadastro";
+  const recuperacaoAtiva = tipo === "recuperacao";
 
   document.getElementById("painelLogin").classList.toggle("ativo", loginAtivo);
-  document.getElementById("painelCadastro").classList.toggle("ativo", !loginAtivo);
+  document.getElementById("painelCadastro").classList.toggle("ativo", cadastroAtivo);
+  document.getElementById("painelRecuperacao").classList.toggle("ativo", recuperacaoAtiva);
   document.getElementById("tabLogin").classList.toggle("ativo", loginAtivo);
-  document.getElementById("tabCadastro").classList.toggle("ativo", !loginAtivo);
+  document.getElementById("tabCadastro").classList.toggle("ativo", cadastroAtivo);
+  document.getElementById("tabRecuperacao").classList.toggle("ativo", recuperacaoAtiva);
   document.getElementById("tabLogin").classList.toggle("secundario", !loginAtivo);
-  document.getElementById("tabCadastro").classList.toggle("secundario", loginAtivo);
+  document.getElementById("tabCadastro").classList.toggle("secundario", !cadastroAtivo);
+  document.getElementById("tabRecuperacao").classList.toggle("secundario", !recuperacaoAtiva);
   setMensagem("mensagemLogin", "", "");
   setMensagem("mensagemCadastro", "", "");
+  setMensagem("mensagemRecuperacao", "", "");
 }
 
 async function apiFetch(endpoint, options = {}) {
@@ -106,6 +173,10 @@ async function bootstrapSessao() {
     localStorage.setItem(USER_KEY, JSON.stringify(data.user));
     mostrarCRM();
     await carregar();
+
+    if (currentUser.must_change_password) {
+      abrirModalSenha(true);
+    }
   } catch (err) {
     console.error(err);
     limparSessao();
@@ -135,6 +206,10 @@ async function login() {
     setMensagem("mensagemLogin", "", "");
     mostrarCRM();
     await carregar();
+
+    if (currentUser.must_change_password) {
+      abrirModalSenha(true);
+    }
   } catch (err) {
     console.error(err);
     setMensagem("mensagemLogin", "Erro ao conectar com o servidor.", "erro");
@@ -170,9 +245,38 @@ async function registrarUsuario() {
   }
 }
 
+async function solicitarRecuperacaoSenha() {
+  const email = document.getElementById("recuperacaoEmail").value.trim();
+
+  try {
+    const response = await fetch(`${API}/password/forgot`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Erro ao solicitar recuperacao.");
+    }
+
+    document.getElementById("recuperacaoEmail").value = "";
+    setMensagem(
+      "mensagemRecuperacao",
+      "Pedido enviado. O administrador pode gerar uma senha temporaria para este email.",
+      "sucesso"
+    );
+  } catch (err) {
+    console.error(err);
+    setMensagem("mensagemRecuperacao", err.message || "Erro ao solicitar recuperacao.", "erro");
+  }
+}
+
 function logout() {
   limparSessao();
   projetosCache = [];
+  usuariosCache = [];
   projetoDetalheAtual = null;
   renderProjetos([]);
   mostrarLogin();
@@ -187,7 +291,11 @@ function formatarData(data) {
 }
 
 function renderVazio(elementId, mensagem) {
-  document.getElementById(elementId).innerHTML = `<div class="vazio">${mensagem}</div>`;
+  const element = document.getElementById(elementId);
+
+  if (element) {
+    element.innerHTML = `<div class="vazio">${mensagem}</div>`;
+  }
 }
 
 async function carregar() {
@@ -201,9 +309,13 @@ async function carregar() {
 
     projetosCache = data;
     aplicarFiltros();
+
+    if (canManageUsers() && document.getElementById("usuariosOverlay").style.display === "block") {
+      await carregarUsuarios();
+    }
   } catch (err) {
     console.error(err);
-    alert(err.message || "Nao foi possivel carregar os projetos.");
+    alert(err.message || "Nao foi possivel carregar projetos.");
   }
 }
 
@@ -223,9 +335,15 @@ function renderProjetos(listaProjetos) {
   listaProjetos.forEach((projeto) => {
     const card = document.createElement("div");
     card.className = "card";
-    card.draggable = true;
+    card.draggable = canChangeStatus();
     card.id = projeto.id;
-    card.addEventListener("dragstart", drag);
+
+    if (canChangeStatus()) {
+      card.addEventListener("dragstart", drag);
+    } else {
+      card.classList.add("sem-arraste");
+    }
+
     card.innerHTML = `
       <div class="card-header">
         <strong>${projeto.cliente_nome}</strong>
@@ -234,7 +352,8 @@ function renderProjetos(listaProjetos) {
       <div class="card-detalhes">
         Cidade: ${formatarValor(projeto.cidade)}<br>
         Potencia: ${formatarValor(projeto.potencia)}<br>
-        Vendedor: ${formatarValor(projeto.vendedor)}
+        Vendedor: ${formatarValor(projeto.vendedor)}<br>
+        Usuario: ${formatarValor(projeto.owner_name || projeto.owner_email)}
       </div>
     `;
 
@@ -248,6 +367,7 @@ function aplicarFiltros() {
   const busca = (document.getElementById("buscaProjeto")?.value || "").trim().toLowerCase();
   const status = document.getElementById("filtroStatus")?.value || "";
   const vendedor = (document.getElementById("filtroVendedor")?.value || "").trim().toLowerCase();
+  const clienteUsuario = (document.getElementById("filtroClienteUsuario")?.value || "").trim().toLowerCase();
 
   const filtrados = projetosCache.filter((projeto) => {
     const textoProjeto = [
@@ -256,6 +376,8 @@ function aplicarFiltros() {
       projeto.email,
       projeto.documento,
       projeto.vendedor,
+      projeto.owner_name,
+      projeto.owner_email,
     ]
       .filter(Boolean)
       .join(" ")
@@ -264,7 +386,9 @@ function aplicarFiltros() {
     return (
       (!busca || textoProjeto.includes(busca)) &&
       (!status || projeto.status === status) &&
-      (!vendedor || String(projeto.vendedor || "").toLowerCase().includes(vendedor))
+      (!vendedor || String(projeto.vendedor || "").toLowerCase().includes(vendedor)) &&
+      (!clienteUsuario ||
+        String(projeto.owner_name || projeto.owner_email || "").toLowerCase().includes(clienteUsuario))
     );
   });
 
@@ -272,6 +396,10 @@ function aplicarFiltros() {
 }
 
 function allowDrop(event) {
+  if (!canChangeStatus()) {
+    return;
+  }
+
   event.preventDefault();
 }
 
@@ -280,6 +408,10 @@ function drag(event) {
 }
 
 async function drop(event, status) {
+  if (!canChangeStatus()) {
+    return;
+  }
+
   event.preventDefault();
   const id = event.dataTransfer.getData("id");
 
@@ -307,6 +439,11 @@ async function drop(event, status) {
 }
 
 function novoProjeto() {
+  if (!canCreateProject()) {
+    alert("Seu perfil nao pode criar projetos.");
+    return;
+  }
+
   document.getElementById("modal").style.display = "block";
 }
 
@@ -420,6 +557,9 @@ function preencherDetalhes(projeto, historico, observacoes, documentos, document
   document.getElementById("detValor").value = projeto.valor || "";
   document.getElementById("detVendedor").value = projeto.vendedor || "";
   document.getElementById("detOrigem").value = projeto.origem || "";
+  document.getElementById("detalheStatus").textContent =
+    `Status atual: ${formatarValor(projeto.status)} | Usuario: ${formatarValor(projeto.owner_name || projeto.owner_email)}`;
+  document.getElementById("botaoExcluirProjeto").style.display = canDeleteProject() ? "inline-flex" : "none";
   preencherDocumentacao(documentos, documentoLinks);
 
   if (!historico.length) {
@@ -609,6 +749,11 @@ async function salvarObservacao() {
 }
 
 async function excluirProjeto() {
+  if (!canDeleteProject()) {
+    alert("Seu perfil nao pode excluir projetos.");
+    return;
+  }
+
   if (!projetoDetalheAtual) {
     alert("Nenhum projeto selecionado.");
     return;
@@ -710,6 +855,196 @@ async function removerDocumento(campo) {
   } catch (err) {
     console.error(err);
     alert(err.message || "Erro ao remover documento.");
+  }
+}
+
+function abrirModalSenha(force = false) {
+  document.getElementById("senhaOverlay").style.display = "block";
+  document.getElementById("senhaAtual").value = "";
+  document.getElementById("senhaNova").value = "";
+  document.getElementById("senhaNovaConfirmacao").value = "";
+  document.getElementById("senhaOverlay").dataset.force = force ? "true" : "false";
+  setMensagem(
+    "mensagemSenha",
+    force ? "Voce recebeu uma senha temporaria. Troque agora para continuar usando com seguranca." : "",
+    force ? "sucesso" : ""
+  );
+}
+
+function fecharModalSenha() {
+  const force = document.getElementById("senhaOverlay").dataset.force === "true";
+
+  if (force) {
+    return;
+  }
+
+  document.getElementById("senhaOverlay").style.display = "none";
+  document.getElementById("senhaOverlay").dataset.force = "false";
+  setMensagem("mensagemSenha", "", "");
+}
+
+async function alterarSenha() {
+  const currentPassword = document.getElementById("senhaAtual").value.trim();
+  const newPassword = document.getElementById("senhaNova").value.trim();
+  const confirmPassword = document.getElementById("senhaNovaConfirmacao").value.trim();
+
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    setMensagem("mensagemSenha", "Preencha todos os campos da troca de senha.", "erro");
+    return;
+  }
+
+  if (newPassword !== confirmPassword) {
+    setMensagem("mensagemSenha", "A confirmacao da nova senha nao confere.", "erro");
+    return;
+  }
+
+  try {
+    const response = await apiFetch("/me/change-password", {
+      method: "POST",
+      body: JSON.stringify({
+        current_password: currentPassword,
+        new_password: newPassword,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Erro ao alterar senha.");
+    }
+
+    currentUser = { ...currentUser, ...data.user };
+    localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
+    atualizarUsuarioAtual();
+    atualizarPermissoesUI();
+    document.getElementById("senhaOverlay").dataset.force = "false";
+    setMensagem("mensagemSenha", "Senha alterada com sucesso.", "sucesso");
+    setTimeout(() => {
+      document.getElementById("senhaOverlay").style.display = "none";
+      setMensagem("mensagemSenha", "", "");
+    }, 800);
+  } catch (err) {
+    console.error(err);
+    setMensagem("mensagemSenha", err.message || "Erro ao alterar senha.", "erro");
+  }
+}
+
+async function carregarUsuarios() {
+  try {
+    const response = await apiFetch("/usuarios");
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Erro ao carregar usuarios.");
+    }
+
+    usuariosCache = data.usuarios || [];
+    renderUsuarios();
+  } catch (err) {
+    console.error(err);
+    alert(err.message || "Erro ao carregar usuarios.");
+  }
+}
+
+function renderUsuarios() {
+  const lista = document.getElementById("listaUsuarios");
+
+  if (!usuariosCache.length) {
+    lista.innerHTML = '<div class="vazio">Nenhum usuario cadastrado.</div>';
+    return;
+  }
+
+  lista.innerHTML = usuariosCache
+    .map(
+      (usuario) => `
+        <div class="usuario-item">
+          <div class="usuario-linha">
+            <div>
+              <strong>${usuario.nome}</strong>
+              <div>${usuario.email}</div>
+              <div class="usuario-meta">
+                Perfil: ${roleLabel(usuario.role)} | Status: ${usuario.ativo ? "Ativo" : "Inativo"}${
+                  usuario.reset_requested_at ? ` | Recuperacao pedida em ${formatarData(usuario.reset_requested_at)}` : ""
+                }
+              </div>
+            </div>
+            <div class="usuario-acoes">
+              <select id="roleUsuario${usuario.id}">
+                <option value="admin" ${usuario.role === "admin" ? "selected" : ""}>Administrador</option>
+                <option value="operador" ${usuario.role === "operador" ? "selected" : ""}>Operador</option>
+                <option value="client" ${usuario.role === "client" ? "selected" : ""}>Cliente</option>
+              </select>
+              <select id="ativoUsuario${usuario.id}">
+                <option value="true" ${usuario.ativo ? "selected" : ""}>Ativo</option>
+                <option value="false" ${!usuario.ativo ? "selected" : ""}>Inativo</option>
+              </select>
+              <button type="button" class="secundario" onclick="salvarUsuario(${usuario.id})">Salvar perfil</button>
+              <button type="button" onclick="gerarSenhaTemporaria(${usuario.id})">Gerar senha temporaria</button>
+            </div>
+          </div>
+        </div>
+      `
+    )
+    .join("");
+}
+
+async function abrirModalUsuarios() {
+  if (!canManageUsers()) {
+    return;
+  }
+
+  document.getElementById("usuariosOverlay").style.display = "block";
+  await carregarUsuarios();
+}
+
+function fecharModalUsuarios() {
+  document.getElementById("usuariosOverlay").style.display = "none";
+}
+
+async function salvarUsuario(userId) {
+  try {
+    const role = document.getElementById(`roleUsuario${userId}`).value;
+    const ativo = document.getElementById(`ativoUsuario${userId}`).value === "true";
+    const response = await apiFetch(`/usuarios/${userId}`, {
+      method: "PUT",
+      body: JSON.stringify({ role, ativo }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Erro ao atualizar usuario.");
+    }
+
+    await carregarUsuarios();
+    alert("Perfil do usuario atualizado com sucesso.");
+  } catch (err) {
+    console.error(err);
+    alert(err.message || "Erro ao atualizar usuario.");
+  }
+}
+
+async function gerarSenhaTemporaria(userId) {
+  if (!window.confirm("Deseja gerar uma senha temporaria para este usuario?")) {
+    return;
+  }
+
+  try {
+    const response = await apiFetch(`/usuarios/${userId}/reset-password`, {
+      method: "POST",
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Erro ao gerar senha temporaria.");
+    }
+
+    await carregarUsuarios();
+    alert(`Senha temporaria de ${data.usuario.nome}: ${data.temporary_password}`);
+  } catch (err) {
+    console.error(err);
+    alert(err.message || "Erro ao gerar senha temporaria.");
   }
 }
 

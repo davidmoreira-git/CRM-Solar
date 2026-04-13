@@ -127,6 +127,16 @@ body {
   font-size: 14px;
 }
 
+.aviso-senha {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(201, 111, 26, 0.24);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
 .painel-filtros {
   margin-top: 18px;
   background: rgba(255, 255, 255, 0.72);
@@ -172,7 +182,7 @@ body {
 
 .filtros {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
   gap: 12px;
 }
 
@@ -252,6 +262,10 @@ button.perigo {
   cursor: grab;
   box-shadow: 0 10px 24px rgba(49, 32, 16, 0.08);
   border: 1px solid rgba(201, 111, 26, 0.08);
+}
+
+.card.sem-arraste {
+  cursor: default;
 }
 
 .card-header {
@@ -470,12 +484,77 @@ button.perigo {
   font-size: 14px;
 }
 
+.overlay-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(29, 36, 51, 0.58);
+  z-index: 1300;
+}
+
+.modal-card {
+  width: min(820px, calc(100vw - 32px));
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  background: var(--surface-strong);
+  border-radius: 24px;
+  box-shadow: var(--shadow);
+  margin: 20px auto;
+  padding: 24px;
+}
+
+.modal-card h3 {
+  margin-top: 0;
+}
+
+.modal-card input,
+.modal-card select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-top: 6px;
+}
+
+.usuario-item {
+  border: 1px solid rgba(201, 111, 26, 0.14);
+  border-radius: 18px;
+  padding: 16px;
+  background: #fffdf9;
+}
+
+.usuario-item + .usuario-item {
+  margin-top: 12px;
+}
+
+.usuario-linha {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.usuario-acoes {
+  display: grid;
+  gap: 10px;
+}
+
+.usuario-meta {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
 @media (max-width: 1180px) {
   .kanban {
     grid-template-columns: repeat(2, minmax(220px, 1fr));
   }
 
   .detalhe-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .usuario-linha {
     grid-template-columns: 1fr;
   }
 }
@@ -524,6 +603,7 @@ button.perigo {
     <div class="login-tabs">
       <button id="tabLogin" class="ativo" onclick="mostrarPainelAuth('login')">Entrar</button>
       <button id="tabCadastro" class="secundario" onclick="mostrarPainelAuth('cadastro')">Criar conta</button>
+      <button id="tabRecuperacao" class="secundario" onclick="mostrarPainelAuth('recuperacao')">Esqueci a senha</button>
     </div>
 
     <div id="painelLogin" class="auth-panel ativo">
@@ -540,6 +620,12 @@ button.perigo {
       <button onclick="registrarUsuario()">Criar conta</button>
       <div id="mensagemCadastro"></div>
     </div>
+
+    <div id="painelRecuperacao" class="auth-panel">
+      <input id="recuperacaoEmail" placeholder="Email cadastrado">
+      <button onclick="solicitarRecuperacaoSenha()">Solicitar ajuda</button>
+      <div id="mensagemRecuperacao"></div>
+    </div>
   </div>
 </div>
 
@@ -552,9 +638,15 @@ button.perigo {
     </div>
     <div class="topo-acoes">
       <div id="usuarioAtual" class="usuario-badge"></div>
-      <button onclick="novoProjeto()">+ Novo Projeto</button>
+      <button id="botaoUsuarios" class="secundario" onclick="abrirModalUsuarios()" style="display:none;">Usuarios</button>
+      <button class="secundario" onclick="abrirModalSenha()">Alterar senha</button>
+      <button id="botaoNovoProjeto" onclick="novoProjeto()">+ Novo Projeto</button>
       <button class="secundario" onclick="logout()">Sair</button>
     </div>
+  </div>
+
+  <div id="avisoTrocaSenha" class="aviso-senha" style="display:none;">
+    Seu usuario esta com senha temporaria. Abra "Alterar senha" e defina uma senha nova.
   </div>
 
   <div class="painel-filtros">
@@ -569,6 +661,7 @@ button.perigo {
         <option value="Finalizado">Finalizado</option>
       </select>
       <input id="filtroVendedor" placeholder="Filtrar por vendedor" oninput="aplicarFiltros()">
+      <input id="filtroClienteUsuario" placeholder="Filtrar por cliente/usuario" oninput="aplicarFiltros()">
     </div>
   </div>
 
@@ -705,8 +798,8 @@ button.perigo {
               </div>
             </div>
             <div class="acoes-modal">
-              <button onclick="salvarEdicaoProjeto()">Salvar alteracoes</button>
-              <button class="perigo" onclick="excluirProjeto()">Excluir projeto</button>
+              <button id="botaoSalvarProjeto" onclick="salvarEdicaoProjeto()">Salvar alteracoes</button>
+              <button id="botaoExcluirProjeto" class="perigo" onclick="excluirProjeto()">Excluir projeto</button>
             </div>
           </div>
 
@@ -807,6 +900,31 @@ button.perigo {
           </div>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<div id="senhaOverlay" class="overlay-modal" data-force="false">
+  <div class="modal-card">
+    <h3>Alterar senha</h3>
+    <input id="senhaAtual" type="password" placeholder="Senha atual ou temporaria">
+    <input id="senhaNova" type="password" placeholder="Nova senha">
+    <input id="senhaNovaConfirmacao" type="password" placeholder="Confirmar nova senha">
+    <div class="acoes-modal">
+      <button onclick="alterarSenha()">Salvar nova senha</button>
+      <button class="secundario" onclick="fecharModalSenha()">Cancelar</button>
+    </div>
+    <div id="mensagemSenha"></div>
+  </div>
+</div>
+
+<div id="usuariosOverlay" class="overlay-modal">
+  <div class="modal-card">
+    <h3>Usuarios e permissoes</h3>
+    <p>Administra perfis, libera acesso e gera senha temporaria quando um cliente pede recuperacao.</p>
+    <div id="listaUsuarios"></div>
+    <div class="acoes-modal">
+      <button class="secundario" onclick="fecharModalUsuarios()">Fechar</button>
     </div>
   </div>
 </div>

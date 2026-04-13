@@ -2,6 +2,7 @@ require("dotenv").config();
 
 const path = require("path");
 const fs = require("fs");
+const crypto = require("crypto");
 const express = require("express");
 const cors = require("cors");
 const bcrypt = require("bcrypt");
@@ -18,6 +19,29 @@ const JWT_SECRET = process.env.JWT_SECRET || "troque-este-segredo-em-producao";
 const TOKEN_EXPIRES_IN = process.env.TOKEN_EXPIRES_IN || "7d";
 const STATUS_PADRAO = "Documentacao";
 const STATUS_VALIDOS = ["Documentacao", "Criando", "Analise", "Aprovado", "Finalizado"];
+const ROLE_PERMISSIONS = {
+  admin: {
+    viewAllProjects: true,
+    createProject: true,
+    changeStatus: true,
+    deleteProject: true,
+    manageUsers: true,
+  },
+  operador: {
+    viewAllProjects: true,
+    createProject: true,
+    changeStatus: true,
+    deleteProject: true,
+    manageUsers: false,
+  },
+  client: {
+    viewAllProjects: false,
+    createProject: false,
+    changeStatus: false,
+    deleteProject: false,
+    manageUsers: false,
+  },
+};
 
 if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
@@ -110,8 +134,31 @@ function sendAuthPayload(res, user) {
       nome: user.nome,
       email: user.email,
       role: user.role,
+      must_change_password: Boolean(user.must_change_password),
     },
   });
+}
+
+function getRolePermissions(role) {
+  return ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS.client;
+}
+
+function hasPermission(user, permission) {
+  return Boolean(getRolePermissions(user.role)[permission]);
+}
+
+function ensurePermission(user, permission) {
+  return hasPermission(user, permission)
+    ? null
+    : { status: 403, error: "Voce nao tem permissao para esta acao." };
+}
+
+function normalizeRole(role) {
+  return String(role || "").trim().toLowerCase();
+}
+
+function buildTemporaryPassword() {
+  return crypto.randomBytes(5).toString("hex").toUpperCase();
 }
 
 function normalizeNumber(value) {
@@ -143,6 +190,8 @@ function mapProjeto(row) {
     origem: row.origem_lead,
     status: row.status_atual,
     created_by: row.created_by,
+    owner_name: row.owner_name || null,
+    owner_email: row.owner_email || null,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -212,7 +261,7 @@ async function createStatusHistory(client, projetoId, statusAnterior, statusNovo
 
 async function getUserById(id) {
   const result = await pool.query(
-    `SELECT id, nome, email, role, ativo
+    `SELECT id, nome, email, role, ativo, must_change_password, reset_requested_at
      FROM users
      WHERE id = $1`,
     [id]
@@ -263,6 +312,8 @@ async function getProjetoAcessivel(projectId, user) {
        origem_lead,
        status_atual,
        created_by,
+       (SELECT nome FROM users WHERE users.id = projetos.created_by) AS owner_name,
+       (SELECT email FROM users WHERE users.id = projetos.created_by) AS owner_email,
        created_at,
        updated_at
      FROM projetos
@@ -276,11 +327,30 @@ async function getProjetoAcessivel(projectId, user) {
     return { status: 404, error: "Projeto nao encontrado." };
   }
 
-  if (user.role !== "admin" && Number(projeto.created_by) !== Number(user.id)) {
+  if (!hasPermission(user, "viewAllProjects") && Number(projeto.created_by) !== Number(user.id)) {
     return { status: 403, error: "Voce nao tem acesso a este projeto." };
   }
 
   return { projeto };
+}
+
+async function getActiveAdminCount(excludeUserId = null) {
+  const params = [];
+  let whereClause = "WHERE role = 'admin' AND ativo = TRUE";
+
+  if (excludeUserId !== null && excludeUserId !== undefined) {
+    params.push(excludeUserId);
+    whereClause += ` AND id <> $${params.length}`;
+  }
+
+  const result = await pool.query(
+    `SELECT COUNT(*)::int AS total
+     FROM users
+     ${whereClause}`,
+    params
+  );
+
+  return result.rows[0].total;
 }
 
 app.get("/", (req, res) => {
@@ -304,9 +374,9 @@ app.post("/register", async (req, res) => {
     const role = countResult.rows[0].total === 0 ? "admin" : "client";
 
     const result = await pool.query(
-      `INSERT INTO users (nome, email, password_hash, role)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, nome, email, role, ativo, created_at`,
+      `INSERT INTO users (nome, email, password_hash, role, must_change_password, last_password_change_at)
+       VALUES ($1, $2, $3, $4, FALSE, NOW())
+       RETURNING id, nome, email, role, ativo, must_change_password, created_at`,
       [nome, email, hash, role]
     );
 
@@ -334,7 +404,7 @@ app.post("/login", async (req, res) => {
     }
 
     const result = await pool.query(
-      `SELECT id, nome, email, password_hash, role, ativo
+      `SELECT id, nome, email, password_hash, role, ativo, must_change_password
        FROM users
        WHERE email = $1`,
       [email]
@@ -370,15 +440,240 @@ app.get("/me", authRequired, async (req, res) => {
       nome: req.user.nome,
       email: req.user.email,
       role: req.user.role,
+      must_change_password: Boolean(req.user.must_change_password),
+      reset_requested_at: req.user.reset_requested_at,
     },
   });
 });
 
+app.post("/password/forgot", async (req, res) => {
+  const email = String(req.body?.email || "").trim().toLowerCase();
+
+  try {
+    if (!email) {
+      return res.status(400).json({ error: "Informe o email para solicitar a recuperacao." });
+    }
+
+    await pool.query(
+      `UPDATE users
+       SET reset_requested_at = NOW(), updated_at = NOW()
+       WHERE email = $1 AND ativo = TRUE`,
+      [email]
+    );
+
+    return res.json({
+      message: "Pedido registrado. Um administrador pode gerar uma senha temporaria para este usuario.",
+    });
+  } catch (err) {
+    console.error("Erro ao solicitar recuperacao de senha:", err);
+    return res.status(500).json({ error: "Erro ao solicitar recuperacao de senha." });
+  }
+});
+
+app.post("/me/change-password", authRequired, async (req, res) => {
+  const currentPassword = String(req.body?.current_password || "");
+  const newPassword = String(req.body?.new_password || "");
+
+  try {
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: "Senha atual e nova senha sao obrigatorias." });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: "A nova senha precisa ter pelo menos 6 caracteres." });
+    }
+
+    const result = await pool.query(
+      `SELECT id, password_hash
+       FROM users
+       WHERE id = $1`,
+      [req.user.id]
+    );
+
+    const user = result.rows[0];
+    const passwordIsValid = user ? await bcrypt.compare(currentPassword, user.password_hash) : false;
+
+    if (!passwordIsValid) {
+      return res.status(401).json({ error: "Senha atual incorreta." });
+    }
+
+    const hash = await bcrypt.hash(newPassword, 10);
+
+    await pool.query(
+      `UPDATE users
+       SET password_hash = $1,
+           must_change_password = FALSE,
+           reset_requested_at = NULL,
+           last_password_change_at = NOW(),
+           updated_at = NOW()
+       WHERE id = $2`,
+      [hash, req.user.id]
+    );
+
+    const updatedUser = await getUserById(req.user.id);
+    return res.json({
+      message: "Senha atualizada com sucesso.",
+      user: {
+        id: updatedUser.id,
+        nome: updatedUser.nome,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        must_change_password: Boolean(updatedUser.must_change_password),
+      },
+    });
+  } catch (err) {
+    console.error("Erro ao alterar senha:", err);
+    return res.status(500).json({ error: "Erro ao alterar senha." });
+  }
+});
+
+app.get("/usuarios", authRequired, async (req, res) => {
+  const permissionError = ensurePermission(req.user, "manageUsers");
+
+  if (permissionError) {
+    return res.status(permissionError.status).json({ error: permissionError.error });
+  }
+
+  try {
+    const result = await pool.query(
+      `SELECT
+         id,
+         nome,
+         email,
+         role,
+         ativo,
+         must_change_password,
+         reset_requested_at,
+         created_at,
+         updated_at
+       FROM users
+       ORDER BY created_at ASC`
+    );
+
+    return res.json({ usuarios: result.rows });
+  } catch (err) {
+    console.error("Erro ao listar usuarios:", err);
+    return res.status(500).json({ error: "Erro ao listar usuarios." });
+  }
+});
+
+app.put("/usuarios/:id", authRequired, async (req, res) => {
+  const permissionError = ensurePermission(req.user, "manageUsers");
+
+  if (permissionError) {
+    return res.status(permissionError.status).json({ error: permissionError.error });
+  }
+
+  const userId = Number(req.params.id);
+  const role = normalizeRole(req.body?.role);
+  const ativo = req.body?.ativo;
+
+  try {
+    const userResult = await pool.query(
+      `SELECT id, role, ativo
+       FROM users
+       WHERE id = $1`,
+      [userId]
+    );
+
+    const targetUser = userResult.rows[0];
+
+    if (!targetUser) {
+      return res.status(404).json({ error: "Usuario nao encontrado." });
+    }
+
+    if (!["admin", "operador", "client"].includes(role)) {
+      return res.status(400).json({ error: "Perfil invalido." });
+    }
+
+    if (typeof ativo !== "boolean") {
+      return res.status(400).json({ error: "Informe se o usuario estara ativo ou inativo." });
+    }
+
+    if (Number(req.user.id) === userId && (role !== "admin" || !ativo)) {
+      return res.status(400).json({ error: "Voce nao pode remover seu proprio acesso de administrador." });
+    }
+
+    if ((targetUser.role === "admin" && role !== "admin") || (targetUser.role === "admin" && !ativo)) {
+      const otherActiveAdmins = await getActiveAdminCount(userId);
+
+      if (otherActiveAdmins === 0) {
+        return res.status(400).json({ error: "O sistema precisa manter pelo menos um administrador ativo." });
+      }
+    }
+
+    const result = await pool.query(
+      `UPDATE users
+       SET role = $1,
+           ativo = $2,
+           updated_at = NOW()
+       WHERE id = $3
+       RETURNING id, nome, email, role, ativo, must_change_password, reset_requested_at, created_at, updated_at`,
+      [role, ativo, userId]
+    );
+
+    return res.json({
+      message: "Usuario atualizado com sucesso.",
+      usuario: result.rows[0],
+    });
+  } catch (err) {
+    console.error("Erro ao atualizar usuario:", err);
+    return res.status(500).json({ error: "Erro ao atualizar usuario." });
+  }
+});
+
+app.post("/usuarios/:id/reset-password", authRequired, async (req, res) => {
+  const permissionError = ensurePermission(req.user, "manageUsers");
+
+  if (permissionError) {
+    return res.status(permissionError.status).json({ error: permissionError.error });
+  }
+
+  const userId = Number(req.params.id);
+
+  try {
+    const userResult = await pool.query(
+      `SELECT id, nome, email
+       FROM users
+       WHERE id = $1`,
+      [userId]
+    );
+
+    const targetUser = userResult.rows[0];
+
+    if (!targetUser) {
+      return res.status(404).json({ error: "Usuario nao encontrado." });
+    }
+
+    const temporaryPassword = buildTemporaryPassword();
+    const hash = await bcrypt.hash(temporaryPassword, 10);
+
+    await pool.query(
+      `UPDATE users
+       SET password_hash = $1,
+           must_change_password = TRUE,
+           reset_requested_at = NULL,
+           updated_at = NOW()
+       WHERE id = $2`,
+      [hash, userId]
+    );
+
+    return res.json({
+      message: "Senha temporaria gerada com sucesso.",
+      temporary_password: temporaryPassword,
+      usuario: targetUser,
+    });
+  } catch (err) {
+    console.error("Erro ao redefinir senha do usuario:", err);
+    return res.status(500).json({ error: "Erro ao redefinir senha do usuario." });
+  }
+});
+
 app.get("/projetos", authRequired, async (req, res) => {
   try {
-    const isAdmin = req.user.role === "admin";
-    const params = isAdmin ? [] : [req.user.id];
-    const whereClause = isAdmin ? "" : "WHERE created_by = $1";
+    const canViewAll = hasPermission(req.user, "viewAllProjects");
+    const params = canViewAll ? [] : [req.user.id];
+    const whereClause = canViewAll ? "" : "WHERE created_by = $1";
 
     const result = await pool.query(
       `SELECT
@@ -399,6 +694,8 @@ app.get("/projetos", authRequired, async (req, res) => {
          origem_lead,
          status_atual,
          created_by,
+         (SELECT nome FROM users WHERE users.id = projetos.created_by) AS owner_name,
+         (SELECT email FROM users WHERE users.id = projetos.created_by) AS owner_email,
          created_at,
          updated_at
        FROM projetos
@@ -477,6 +774,12 @@ app.post("/projetos", authRequired, async (req, res) => {
   const client = await pool.connect();
 
   try {
+    const permissionError = ensurePermission(req.user, "createProject");
+
+    if (permissionError) {
+      return res.status(permissionError.status).json({ error: permissionError.error });
+    }
+
     if (!cliente_nome) {
       return res.status(400).json({ error: "O nome do cliente e obrigatorio." });
     }
@@ -523,6 +826,8 @@ app.post("/projetos", authRequired, async (req, res) => {
         origem_lead,
         status_atual,
         created_by,
+        NULL::VARCHAR AS owner_name,
+        NULL::VARCHAR AS owner_email,
         created_at,
         updated_at`,
       [...buildProjetoValues(req.body, req.user.nome), STATUS_PADRAO, req.user.id]
@@ -533,7 +838,11 @@ app.post("/projetos", authRequired, async (req, res) => {
 
     return res.status(201).json({
       message: "Projeto criado com sucesso.",
-      projeto: mapProjeto(projetoResult.rows[0]),
+      projeto: mapProjeto({
+        ...projetoResult.rows[0],
+        owner_name: req.user.nome,
+        owner_email: req.user.email,
+      }),
     });
   } catch (err) {
     await client.query("ROLLBACK");
@@ -577,7 +886,7 @@ app.put("/projetos/:id/dados", authRequired, async (req, res) => {
          origem_lead = $14,
          updated_at = NOW()
        WHERE id = $15
-       RETURNING
+      RETURNING
          id,
          cliente_nome,
          telefone,
@@ -595,6 +904,8 @@ app.put("/projetos/:id/dados", authRequired, async (req, res) => {
          origem_lead,
          status_atual,
          created_by,
+         (SELECT nome FROM users WHERE users.id = projetos.created_by) AS owner_name,
+         (SELECT email FROM users WHERE users.id = projetos.created_by) AS owner_email,
          created_at,
          updated_at`,
       [...buildProjetoValues(req.body, acesso.projeto.vendedor_nome || req.user.nome), id]
@@ -614,6 +925,12 @@ app.delete("/projetos/:id", authRequired, async (req, res) => {
   const { id } = req.params;
 
   try {
+    const permissionError = ensurePermission(req.user, "deleteProject");
+
+    if (permissionError) {
+      return res.status(permissionError.status).json({ error: permissionError.error });
+    }
+
     const acesso = await getProjetoAcessivel(id, req.user);
 
     if (acesso.error) {
@@ -657,6 +974,12 @@ app.put("/projetos/:id", authRequired, async (req, res) => {
   const client = await pool.connect();
 
   try {
+    const permissionError = ensurePermission(req.user, "changeStatus");
+
+    if (permissionError) {
+      return res.status(permissionError.status).json({ error: permissionError.error });
+    }
+
     if (!status) {
       return res.status(400).json({ error: "O status e obrigatorio." });
     }
@@ -695,6 +1018,8 @@ app.put("/projetos/:id", authRequired, async (req, res) => {
          origem_lead,
          status_atual,
          created_by,
+         (SELECT nome FROM users WHERE users.id = projetos.created_by) AS owner_name,
+         (SELECT email FROM users WHERE users.id = projetos.created_by) AS owner_email,
          created_at,
          updated_at`,
       [status, id]

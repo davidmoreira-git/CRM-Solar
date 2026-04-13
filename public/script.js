@@ -619,10 +619,16 @@ function limparArquivosDocumentacao() {
     "docCnh",
     "docTalaoEnergia",
     "docProcuracao",
+    "docBoletoTrt",
+    "docDiagramaUnifilar",
+    "docParecerAcesso",
     "docNumeroPoste",
     "docDisjuntorPadrao",
     "docPadraoAberto",
     "docPlacaEndereco",
+    "docInversorInstalado",
+    "docModulosInstalados",
+    "docConexaoCa",
   ].forEach((id) => {
     const input = document.getElementById(id);
     if (input) {
@@ -636,17 +642,29 @@ function preencherDocumentacao(documentos, documentoLinks) {
   preencherLinkDocumento("linkCnh", documentoLinks.cnh, "cnh");
   preencherLinkDocumento("linkTalaoEnergia", documentoLinks.talao_energia, "talao_energia");
   preencherLinkDocumento("linkProcuracao", documentoLinks.procuracao, "procuracao");
+  preencherLinkDocumento("linkBoletoTrt", documentoLinks.boleto_trt, "boleto_trt");
+  preencherLinkDocumento("linkDiagramaUnifilar", documentoLinks.diagrama_unifilar, "diagrama_unifilar");
+  preencherLinkDocumento("linkParecerAcesso", documentoLinks.parecer_acesso, "parecer_acesso");
   preencherLinkDocumento("linkNumeroPoste", documentoLinks.foto_numero_poste, "foto_numero_poste");
   preencherLinkDocumento("linkDisjuntorPadrao", documentoLinks.foto_disjuntor_padrao, "foto_disjuntor_padrao");
   preencherLinkDocumento("linkPadraoAberto", documentoLinks.foto_padrao_aberto, "foto_padrao_aberto");
   preencherLinkDocumento("linkPlacaEndereco", documentoLinks.foto_placa_endereco, "foto_placa_endereco");
+  preencherLinkDocumento("linkInversorInstalado", documentoLinks.foto_inversor_instalado, "foto_inversor_instalado");
+  preencherLinkDocumento("linkModulosInstalados", documentoLinks.foto_modulos_instalados, "foto_modulos_instalados");
+  preencherLinkDocumento("linkConexaoCa", documentoLinks.foto_conexao_ca, "foto_conexao_ca");
   preencherBotaoRemover("removerCnh", Boolean(documentos?.cnh_path));
   preencherBotaoRemover("removerTalaoEnergia", Boolean(documentos?.talao_energia_path));
   preencherBotaoRemover("removerProcuracao", Boolean(documentos?.procuracao_path));
+  preencherBotaoRemover("removerBoletoTrt", Boolean(documentos?.boleto_trt_path));
+  preencherBotaoRemover("removerDiagramaUnifilar", Boolean(documentos?.diagrama_unifilar_path));
+  preencherBotaoRemover("removerParecerAcesso", Boolean(documentos?.parecer_acesso_path));
   preencherBotaoRemover("removerNumeroPoste", Boolean(documentos?.foto_numero_poste_path));
   preencherBotaoRemover("removerDisjuntorPadrao", Boolean(documentos?.foto_disjuntor_padrao_path));
   preencherBotaoRemover("removerPadraoAberto", Boolean(documentos?.foto_padrao_aberto_path));
   preencherBotaoRemover("removerPlacaEndereco", Boolean(documentos?.foto_placa_endereco_path));
+  preencherBotaoRemover("removerInversorInstalado", Boolean(documentos?.foto_inversor_instalado_path));
+  preencherBotaoRemover("removerModulosInstalados", Boolean(documentos?.foto_modulos_instalados_path));
+  preencherBotaoRemover("removerConexaoCa", Boolean(documentos?.foto_conexao_ca_path));
   limparArquivosDocumentacao();
 }
 
@@ -795,10 +813,16 @@ async function salvarDocumentacao() {
       ["cnh", "docCnh"],
       ["talao_energia", "docTalaoEnergia"],
       ["procuracao", "docProcuracao"],
+      ["boleto_trt", "docBoletoTrt"],
+      ["diagrama_unifilar", "docDiagramaUnifilar"],
+      ["parecer_acesso", "docParecerAcesso"],
       ["foto_numero_poste", "docNumeroPoste"],
       ["foto_disjuntor_padrao", "docDisjuntorPadrao"],
       ["foto_padrao_aberto", "docPadraoAberto"],
       ["foto_placa_endereco", "docPlacaEndereco"],
+      ["foto_inversor_instalado", "docInversorInstalado"],
+      ["foto_modulos_instalados", "docModulosInstalados"],
+      ["foto_conexao_ca", "docConexaoCa"],
     ];
 
     camposArquivo.forEach(([campoApi, campoTela]) => {

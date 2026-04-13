@@ -140,10 +140,16 @@ CREATE TABLE IF NOT EXISTS projeto_documentos (
   cnh_path TEXT,
   talao_energia_path TEXT,
   procuracao_path TEXT,
+  boleto_trt_path TEXT,
+  diagrama_unifilar_path TEXT,
+  parecer_acesso_path TEXT,
   foto_numero_poste_path TEXT,
   foto_disjuntor_padrao_path TEXT,
   foto_padrao_aberto_path TEXT,
   foto_placa_endereco_path TEXT,
+  foto_inversor_instalado_path TEXT,
+  foto_modulos_instalados_path TEXT,
+  foto_conexao_ca_path TEXT,
   localizacao TEXT,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

@@ -80,10 +80,16 @@ const DOCUMENT_FIELD_MAP = {
   cnh: "cnh_path",
   talao_energia: "talao_energia_path",
   procuracao: "procuracao_path",
+  boleto_trt: "boleto_trt_path",
+  diagrama_unifilar: "diagrama_unifilar_path",
+  parecer_acesso: "parecer_acesso_path",
   foto_numero_poste: "foto_numero_poste_path",
   foto_disjuntor_padrao: "foto_disjuntor_padrao_path",
   foto_padrao_aberto: "foto_padrao_aberto_path",
   foto_placa_endereco: "foto_placa_endereco_path",
+  foto_inversor_instalado: "foto_inversor_instalado_path",
+  foto_modulos_instalados: "foto_modulos_instalados_path",
+  foto_conexao_ca: "foto_conexao_ca_path",
 };
 
 app.use(cors());
@@ -743,10 +749,16 @@ app.get("/projetos/:id", authRequired, async (req, res) => {
          cnh_path,
          talao_energia_path,
          procuracao_path,
+         boleto_trt_path,
+         diagrama_unifilar_path,
+         parecer_acesso_path,
          foto_numero_poste_path,
          foto_disjuntor_padrao_path,
          foto_padrao_aberto_path,
          foto_placa_endereco_path,
+         foto_inversor_instalado_path,
+         foto_modulos_instalados_path,
+         foto_conexao_ca_path,
          localizacao,
          updated_at
        FROM projeto_documentos
@@ -1083,10 +1095,16 @@ app.post(
     { name: "cnh", maxCount: 1 },
     { name: "talao_energia", maxCount: 1 },
     { name: "procuracao", maxCount: 1 },
+    { name: "boleto_trt", maxCount: 1 },
+    { name: "diagrama_unifilar", maxCount: 1 },
+    { name: "parecer_acesso", maxCount: 1 },
     { name: "foto_numero_poste", maxCount: 1 },
     { name: "foto_disjuntor_padrao", maxCount: 1 },
     { name: "foto_padrao_aberto", maxCount: 1 },
     { name: "foto_placa_endereco", maxCount: 1 },
+    { name: "foto_inversor_instalado", maxCount: 1 },
+    { name: "foto_modulos_instalados", maxCount: 1 },
+    { name: "foto_conexao_ca", maxCount: 1 },
   ]),
   async (req, res) => {
     const { id } = req.params;
@@ -1113,64 +1131,94 @@ app.post(
         }
       });
 
-      const values = {
-        cnh_path: normalizeFilePath(arquivos.cnh?.[0]) || atual.cnh_path || null,
-        talao_energia_path:
-          normalizeFilePath(arquivos.talao_energia?.[0]) || atual.talao_energia_path || null,
-        procuracao_path:
-          normalizeFilePath(arquivos.procuracao?.[0]) || atual.procuracao_path || null,
-        foto_numero_poste_path:
-          normalizeFilePath(arquivos.foto_numero_poste?.[0]) || atual.foto_numero_poste_path || null,
-        foto_disjuntor_padrao_path:
-          normalizeFilePath(arquivos.foto_disjuntor_padrao?.[0]) || atual.foto_disjuntor_padrao_path || null,
-        foto_padrao_aberto_path:
-          normalizeFilePath(arquivos.foto_padrao_aberto?.[0]) || atual.foto_padrao_aberto_path || null,
-        foto_placa_endereco_path:
-          normalizeFilePath(arquivos.foto_placa_endereco?.[0]) || atual.foto_placa_endereco_path || null,
-        localizacao:
-          localizacao !== undefined ? localizacao : atual.localizacao || null,
-      };
+        const values = {
+          cnh_path: normalizeFilePath(arquivos.cnh?.[0]) || atual.cnh_path || null,
+          talao_energia_path:
+            normalizeFilePath(arquivos.talao_energia?.[0]) || atual.talao_energia_path || null,
+          procuracao_path:
+            normalizeFilePath(arquivos.procuracao?.[0]) || atual.procuracao_path || null,
+          boleto_trt_path:
+            normalizeFilePath(arquivos.boleto_trt?.[0]) || atual.boleto_trt_path || null,
+          diagrama_unifilar_path:
+            normalizeFilePath(arquivos.diagrama_unifilar?.[0]) || atual.diagrama_unifilar_path || null,
+          parecer_acesso_path:
+            normalizeFilePath(arquivos.parecer_acesso?.[0]) || atual.parecer_acesso_path || null,
+          foto_numero_poste_path:
+            normalizeFilePath(arquivos.foto_numero_poste?.[0]) || atual.foto_numero_poste_path || null,
+          foto_disjuntor_padrao_path:
+            normalizeFilePath(arquivos.foto_disjuntor_padrao?.[0]) || atual.foto_disjuntor_padrao_path || null,
+          foto_padrao_aberto_path:
+            normalizeFilePath(arquivos.foto_padrao_aberto?.[0]) || atual.foto_padrao_aberto_path || null,
+          foto_placa_endereco_path:
+            normalizeFilePath(arquivos.foto_placa_endereco?.[0]) || atual.foto_placa_endereco_path || null,
+          foto_inversor_instalado_path:
+            normalizeFilePath(arquivos.foto_inversor_instalado?.[0]) || atual.foto_inversor_instalado_path || null,
+          foto_modulos_instalados_path:
+            normalizeFilePath(arquivos.foto_modulos_instalados?.[0]) || atual.foto_modulos_instalados_path || null,
+          foto_conexao_ca_path:
+            normalizeFilePath(arquivos.foto_conexao_ca?.[0]) || atual.foto_conexao_ca_path || null,
+          localizacao:
+            localizacao !== undefined ? localizacao : atual.localizacao || null,
+        };
 
       const result = await pool.query(
         `INSERT INTO projeto_documentos
-        (
-          projeto_id,
-          cnh_path,
-          talao_energia_path,
-          procuracao_path,
-          foto_numero_poste_path,
-          foto_disjuntor_padrao_path,
-          foto_padrao_aberto_path,
-          foto_placa_endereco_path,
-          localizacao,
-          updated_at
-        )
-        VALUES
-        ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
-        ON CONFLICT (projeto_id)
-        DO UPDATE SET
-          cnh_path = EXCLUDED.cnh_path,
-          talao_energia_path = EXCLUDED.talao_energia_path,
-          procuracao_path = EXCLUDED.procuracao_path,
-          foto_numero_poste_path = EXCLUDED.foto_numero_poste_path,
-          foto_disjuntor_padrao_path = EXCLUDED.foto_disjuntor_padrao_path,
-          foto_padrao_aberto_path = EXCLUDED.foto_padrao_aberto_path,
-          foto_placa_endereco_path = EXCLUDED.foto_placa_endereco_path,
-          localizacao = EXCLUDED.localizacao,
-          updated_at = NOW()
-        RETURNING *`,
-        [
-          id,
-          values.cnh_path,
-          values.talao_energia_path,
-          values.procuracao_path,
-          values.foto_numero_poste_path,
-          values.foto_disjuntor_padrao_path,
-          values.foto_padrao_aberto_path,
-          values.foto_placa_endereco_path,
-          values.localizacao,
-        ]
-      );
+          (
+            projeto_id,
+            cnh_path,
+            talao_energia_path,
+            procuracao_path,
+            boleto_trt_path,
+            diagrama_unifilar_path,
+            parecer_acesso_path,
+            foto_numero_poste_path,
+            foto_disjuntor_padrao_path,
+            foto_padrao_aberto_path,
+            foto_placa_endereco_path,
+            foto_inversor_instalado_path,
+            foto_modulos_instalados_path,
+            foto_conexao_ca_path,
+            localizacao,
+            updated_at
+          )
+          VALUES
+          ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW())
+          ON CONFLICT (projeto_id)
+          DO UPDATE SET
+            cnh_path = EXCLUDED.cnh_path,
+            talao_energia_path = EXCLUDED.talao_energia_path,
+            procuracao_path = EXCLUDED.procuracao_path,
+            boleto_trt_path = EXCLUDED.boleto_trt_path,
+            diagrama_unifilar_path = EXCLUDED.diagrama_unifilar_path,
+            parecer_acesso_path = EXCLUDED.parecer_acesso_path,
+            foto_numero_poste_path = EXCLUDED.foto_numero_poste_path,
+            foto_disjuntor_padrao_path = EXCLUDED.foto_disjuntor_padrao_path,
+            foto_padrao_aberto_path = EXCLUDED.foto_padrao_aberto_path,
+            foto_placa_endereco_path = EXCLUDED.foto_placa_endereco_path,
+            foto_inversor_instalado_path = EXCLUDED.foto_inversor_instalado_path,
+            foto_modulos_instalados_path = EXCLUDED.foto_modulos_instalados_path,
+            foto_conexao_ca_path = EXCLUDED.foto_conexao_ca_path,
+            localizacao = EXCLUDED.localizacao,
+            updated_at = NOW()
+          RETURNING *`,
+          [
+            id,
+            values.cnh_path,
+            values.talao_energia_path,
+            values.procuracao_path,
+            values.boleto_trt_path,
+            values.diagrama_unifilar_path,
+            values.parecer_acesso_path,
+            values.foto_numero_poste_path,
+            values.foto_disjuntor_padrao_path,
+            values.foto_padrao_aberto_path,
+            values.foto_placa_endereco_path,
+            values.foto_inversor_instalado_path,
+            values.foto_modulos_instalados_path,
+            values.foto_conexao_ca_path,
+            values.localizacao,
+          ]
+        );
 
       return res.json({
         message: "Documentacao atualizada com sucesso.",

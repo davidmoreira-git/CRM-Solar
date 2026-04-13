@@ -28,7 +28,7 @@ const ROLE_PERMISSIONS = {
     manageUsers: true,
   },
   operador: {
-    viewAllProjects: true,
+    viewAllProjects: false,
     createProject: true,
     changeStatus: true,
     deleteProject: true,

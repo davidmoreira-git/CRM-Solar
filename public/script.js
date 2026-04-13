@@ -318,7 +318,9 @@ async function carregar() {
       throw new Error(data.error || "Erro ao carregar projetos.");
     }
 
-    projetosCache = data;
+    projetosCache = isAdmin()
+      ? data
+      : data.filter((projeto) => String(projeto.created_by) === String(currentUser?.id));
     aplicarFiltros();
 
     if (canManageUsers() && document.getElementById("usuariosOverlay").style.display === "block") {

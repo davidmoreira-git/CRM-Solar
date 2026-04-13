@@ -18,7 +18,7 @@ const UPLOADS_DIR = path.resolve(process.env.UPLOADS_DIR || path.join(__dirname,
 const JWT_SECRET = process.env.JWT_SECRET || "troque-este-segredo-em-producao";
 const TOKEN_EXPIRES_IN = process.env.TOKEN_EXPIRES_IN || "7d";
 const STATUS_PADRAO = "Documentacao";
-const STATUS_VALIDOS = ["Documentacao", "Criando", "Analise", "Aprovado", "Finalizado"];
+const STATUS_VALIDOS = ["Documentacao", "Tramitacao", "Analise", "Aprovado", "Finalizado"];
 const ROLE_PERMISSIONS = {
   admin: {
     viewAllProjects: true,
@@ -292,6 +292,34 @@ async function createStatusHistory(client, projetoId, statusAnterior, statusNovo
   );
 }
 
+async function createNotification(userId, projetoId, titulo, mensagem) {
+  await pool.query(
+    `INSERT INTO notificacoes (user_id, projeto_id, titulo, mensagem)
+     VALUES ($1, $2, $3, $4)`,
+    [userId, projetoId || null, titulo, mensagem]
+  );
+}
+
+async function notifyAdmins(projetoId, titulo, mensagem) {
+  const result = await pool.query(
+    `SELECT id
+     FROM users
+     WHERE role = 'admin' AND ativo = TRUE`
+  );
+
+  await Promise.all(
+    result.rows.map((row) => createNotification(row.id, projetoId, titulo, mensagem))
+  );
+}
+
+async function notifyProjectOwner(projetoId, ownerId, titulo, mensagem) {
+  if (!ownerId) {
+    return;
+  }
+
+  await createNotification(ownerId, projetoId, titulo, mensagem);
+}
+
 async function getUserById(id) {
   const result = await pool.query(
     `SELECT id, nome, email, role, ativo, must_change_password, reset_requested_at
@@ -477,6 +505,45 @@ app.get("/me", authRequired, async (req, res) => {
       reset_requested_at: req.user.reset_requested_at,
     },
   });
+});
+
+app.get("/notificacoes", authRequired, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, user_id, projeto_id, titulo, mensagem, lida, created_at
+       FROM notificacoes
+       WHERE user_id = $1
+       ORDER BY created_at DESC
+       LIMIT 50`,
+      [req.user.id]
+    );
+
+    return res.json({ notificacoes: result.rows });
+  } catch (err) {
+    console.error("Erro ao listar notificacoes:", err);
+    return res.status(500).json({ error: "Erro ao listar notificacoes." });
+  }
+});
+
+app.put("/notificacoes/:id/lida", authRequired, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `UPDATE notificacoes
+       SET lida = TRUE
+       WHERE id = $1 AND user_id = $2
+       RETURNING id`,
+      [req.params.id, req.user.id]
+    );
+
+    if (!result.rows.length) {
+      return res.status(404).json({ error: "Notificacao nao encontrada." });
+    }
+
+    return res.json({ message: "Notificacao marcada como lida." });
+  } catch (err) {
+    console.error("Erro ao marcar notificacao como lida:", err);
+    return res.status(500).json({ error: "Erro ao marcar notificacao como lida." });
+  }
 });
 
 app.post("/password/forgot", async (req, res) => {
@@ -882,6 +949,13 @@ app.post("/projetos", authRequired, async (req, res) => {
     await client.query("COMMIT");
 
     const owner = await getUserById(assignedOwnerId);
+    if (req.user.role !== "admin") {
+      await notifyAdmins(
+        projetoResult.rows[0].id,
+        "Novo projeto criado",
+        `${req.user.nome} criou o projeto ${projetoResult.rows[0].cliente_nome}.`
+      );
+    }
 
     return res.status(201).json({
       message: "Projeto criado com sucesso.",
@@ -967,6 +1041,14 @@ app.put("/projetos/:id/dados", authRequired, async (req, res) => {
          updated_at`,
       [...buildProjetoValues(req.body, acesso.projeto.vendedor_nome || req.user.nome), assignedOwnerId, id]
     );
+
+    if (req.user.role !== "admin") {
+      await notifyAdmins(
+        id,
+        "Projeto alterado",
+        `${req.user.nome} atualizou os dados do projeto ${result.rows[0].cliente_nome}.`
+      );
+    }
 
     return res.json({
       message: "Projeto atualizado com sucesso.",
@@ -1088,6 +1170,15 @@ app.put("/projetos/:id", authRequired, async (req, res) => {
 
     await client.query("COMMIT");
 
+    if (req.user.role === "admin" && Number(updateResult.rows[0].created_by) !== Number(req.user.id)) {
+      await notifyProjectOwner(
+        id,
+        updateResult.rows[0].created_by,
+        "Projeto mudou de etapa",
+        `O projeto ${updateResult.rows[0].cliente_nome} foi movido para ${status}.`
+      );
+    }
+
     return res.json({
       message: "Status atualizado com sucesso.",
       projeto: mapProjeto(updateResult.rows[0]),
@@ -1122,6 +1213,14 @@ app.post("/projetos/:id/observacoes", authRequired, async (req, res) => {
        RETURNING id, projeto_id, observacao, created_by, created_at`,
       [id, observacao, req.user.id]
     );
+
+    if (req.user.role !== "admin") {
+      await notifyAdmins(
+        id,
+        "Nova observacao",
+        `${req.user.nome} adicionou uma observacao no projeto ${acesso.projeto.cliente_nome}.`
+      );
+    }
 
     return res.status(201).json({
       message: "Observacao criada com sucesso.",
@@ -1264,6 +1363,14 @@ app.post(
             values.localizacao,
           ]
         );
+
+      if (req.user.role !== "admin") {
+        await notifyAdmins(
+          id,
+          "Documentacao atualizada",
+          `${req.user.nome} enviou ou alterou documentos do projeto ${acesso.projeto.cliente_nome}.`
+        );
+      }
 
       return res.json({
         message: "Documentacao atualizada com sucesso.",

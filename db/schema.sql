@@ -118,6 +118,10 @@ UPDATE projetos
 SET status_atual = 'Documentacao'
 WHERE status_atual IS NULL OR status_atual = '';
 
+UPDATE projetos
+SET status_atual = 'Tramitacao'
+WHERE status_atual = 'Criando';
+
 CREATE TABLE IF NOT EXISTS projeto_status_historico (
   id BIGSERIAL PRIMARY KEY,
   projeto_id BIGINT NOT NULL REFERENCES projetos(id) ON DELETE CASCADE,
@@ -133,6 +137,16 @@ CREATE TABLE IF NOT EXISTS projeto_observacoes (
   projeto_id BIGINT NOT NULL REFERENCES projetos(id) ON DELETE CASCADE,
   observacao TEXT NOT NULL,
   created_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS notificacoes (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  projeto_id BIGINT REFERENCES projetos(id) ON DELETE CASCADE,
+  titulo VARCHAR(180) NOT NULL,
+  mensagem TEXT NOT NULL,
+  lida BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -186,3 +200,4 @@ CREATE INDEX IF NOT EXISTS idx_projetos_cliente_nome ON projetos(cliente_nome);
 CREATE INDEX IF NOT EXISTS idx_projetos_created_by ON projetos(created_by);
 CREATE INDEX IF NOT EXISTS idx_status_historico_projeto ON projeto_status_historico(projeto_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_observacoes_projeto ON projeto_observacoes(projeto_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notificacoes_user_lida ON notificacoes(user_id, lida, created_at DESC);

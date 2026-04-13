@@ -10,6 +10,7 @@ const ROLE_LABELS = {
 let projetoDetalheAtual = null;
 let projetosCache = [];
 let usuariosCache = [];
+let notificacoesCache = [];
 let authToken = localStorage.getItem(TOKEN_KEY) || "";
 let currentUser = JSON.parse(localStorage.getItem(USER_KEY) || "null");
 
@@ -119,6 +120,7 @@ function mostrarLogin() {
   fecharDetalhes();
   fecharModalUsuarios();
   fecharModalSenha();
+  fecharModalNotificacoes();
   atualizarUsuarioAtual();
 }
 
@@ -183,6 +185,7 @@ async function bootstrapSessao() {
     currentUser = data.user;
     localStorage.setItem(USER_KEY, JSON.stringify(data.user));
     mostrarCRM();
+    await carregarNotificacoes();
     await carregar();
 
     if (currentUser.must_change_password) {
@@ -216,6 +219,7 @@ async function login() {
     salvarSessao(data.token, data.user);
     setMensagem("mensagemLogin", "", "");
     mostrarCRM();
+    await carregarNotificacoes();
     await carregar();
 
     if (currentUser.must_change_password) {
@@ -288,6 +292,7 @@ function logout() {
   limparSessao();
   projetosCache = [];
   usuariosCache = [];
+  notificacoesCache = [];
   projetoDetalheAtual = null;
   renderProjetos([]);
   mostrarLogin();
@@ -299,6 +304,10 @@ function formatarValor(valor) {
 
 function formatarData(data) {
   return data ? new Date(data).toLocaleString("pt-BR") : "-";
+}
+
+function normalizarStatus(status) {
+  return status === "Criando" ? "Tramitacao" : status;
 }
 
 function renderVazio(elementId, mensagem) {
@@ -318,13 +327,16 @@ async function carregar() {
       throw new Error(data.error || "Erro ao carregar projetos.");
     }
 
-    projetosCache = isAdmin()
+    projetosCache = (isAdmin()
       ? data
       : data.filter(
           (projeto) =>
             String(projeto.created_by) === String(currentUser?.id) ||
             String(projeto.owner_email || "").toLowerCase() === String(currentUser?.email || "").toLowerCase()
-        );
+        )).map((projeto) => ({
+      ...projeto,
+      status: normalizarStatus(projeto.status),
+    }));
     aplicarFiltros();
 
     if (canManageUsers() && document.getElementById("usuariosOverlay").style.display === "block") {
@@ -333,6 +345,94 @@ async function carregar() {
   } catch (err) {
     console.error(err);
     alert(err.message || "Nao foi possivel carregar projetos.");
+  }
+}
+
+function atualizarBadgeNotificacoes() {
+  const badge = document.getElementById("notificacoesBadge");
+
+  if (!badge) {
+    return;
+  }
+
+  const pendentes = notificacoesCache.filter((item) => !item.lida).length;
+  badge.textContent = String(pendentes);
+  badge.style.display = pendentes > 0 ? "inline-flex" : "none";
+}
+
+async function carregarNotificacoes() {
+  try {
+    const response = await apiFetch("/notificacoes");
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Erro ao carregar notificacoes.");
+    }
+
+    notificacoesCache = data.notificacoes || [];
+    atualizarBadgeNotificacoes();
+    renderNotificacoes();
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+function renderNotificacoes() {
+  const lista = document.getElementById("listaNotificacoes");
+
+  if (!lista) {
+    return;
+  }
+
+  if (!notificacoesCache.length) {
+    lista.innerHTML = '<div class="vazio">Nenhuma notificacao por enquanto.</div>';
+    return;
+  }
+
+  lista.innerHTML = notificacoesCache
+    .map(
+      (item) => `
+        <div class="usuario-item">
+          <strong>${item.titulo}</strong>
+          <div class="usuario-meta">${item.mensagem}</div>
+          <div class="usuario-meta">${formatarData(item.created_at)}</div>
+          ${
+            item.lida
+              ? '<div class="usuario-meta">Lida</div>'
+              : `<div class="acoes-modal"><button type="button" class="secundario" onclick="marcarNotificacaoLida(${item.id})">Marcar como lida</button></div>`
+          }
+        </div>
+      `
+    )
+    .join("");
+}
+
+function abrirModalNotificacoes() {
+  document.getElementById("notificacoesOverlay").style.display = "block";
+  carregarNotificacoes();
+}
+
+function fecharModalNotificacoes() {
+  document.getElementById("notificacoesOverlay").style.display = "none";
+}
+
+async function marcarNotificacaoLida(id) {
+  try {
+    const response = await apiFetch(`/notificacoes/${id}/lida`, {
+      method: "PUT",
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Erro ao marcar notificacao.");
+    }
+
+    notificacoesCache = notificacoesCache.map((item) => (item.id === id ? { ...item, lida: true } : item));
+    atualizarBadgeNotificacoes();
+    renderNotificacoes();
+  } catch (err) {
+    console.error(err);
+    alert(err.message || "Erro ao marcar notificacao.");
   }
 }
 
@@ -382,7 +482,7 @@ function preencherSelectResponsavel(selectId, selectedId) {
 function renderProjetos(listaProjetos) {
   const colunas = {
     Documentacao: document.getElementById("Documentacao"),
-    Criando: document.getElementById("Criando"),
+    Tramitacao: document.getElementById("Tramitacao"),
     Analise: document.getElementById("Analise"),
     Aprovado: document.getElementById("Aprovado"),
     Finalizado: document.getElementById("Finalizado"),

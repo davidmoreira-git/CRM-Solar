@@ -154,6 +154,22 @@ CREATE TABLE IF NOT EXISTS projeto_documentos (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+ALTER TABLE projeto_documentos ADD COLUMN IF NOT EXISTS cnh_path TEXT;
+ALTER TABLE projeto_documentos ADD COLUMN IF NOT EXISTS talao_energia_path TEXT;
+ALTER TABLE projeto_documentos ADD COLUMN IF NOT EXISTS procuracao_path TEXT;
+ALTER TABLE projeto_documentos ADD COLUMN IF NOT EXISTS boleto_trt_path TEXT;
+ALTER TABLE projeto_documentos ADD COLUMN IF NOT EXISTS diagrama_unifilar_path TEXT;
+ALTER TABLE projeto_documentos ADD COLUMN IF NOT EXISTS parecer_acesso_path TEXT;
+ALTER TABLE projeto_documentos ADD COLUMN IF NOT EXISTS foto_numero_poste_path TEXT;
+ALTER TABLE projeto_documentos ADD COLUMN IF NOT EXISTS foto_disjuntor_padrao_path TEXT;
+ALTER TABLE projeto_documentos ADD COLUMN IF NOT EXISTS foto_padrao_aberto_path TEXT;
+ALTER TABLE projeto_documentos ADD COLUMN IF NOT EXISTS foto_placa_endereco_path TEXT;
+ALTER TABLE projeto_documentos ADD COLUMN IF NOT EXISTS foto_inversor_instalado_path TEXT;
+ALTER TABLE projeto_documentos ADD COLUMN IF NOT EXISTS foto_modulos_instalados_path TEXT;
+ALTER TABLE projeto_documentos ADD COLUMN IF NOT EXISTS foto_conexao_ca_path TEXT;
+ALTER TABLE projeto_documentos ADD COLUMN IF NOT EXISTS localizacao TEXT;
+ALTER TABLE projeto_documentos ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
 INSERT INTO projeto_status_historico (projeto_id, status_anterior, status_novo, created_at)
 SELECT p.id, NULL, p.status_atual, p.created_at
 FROM projetos p

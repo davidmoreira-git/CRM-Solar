@@ -222,6 +222,33 @@ function buildProjetoValues(body, ownerName) {
   ];
 }
 
+async function resolveAssignedOwnerId(bodyOwnerId, currentUser) {
+  if (currentUser.role !== "admin") {
+    return currentUser.id;
+  }
+
+  const ownerId = Number(bodyOwnerId);
+
+  if (!ownerId) {
+    return currentUser.id;
+  }
+
+  const result = await pool.query(
+    `SELECT id, nome, email, role, ativo
+     FROM users
+     WHERE id = $1`,
+    [ownerId]
+  );
+
+  const owner = result.rows[0];
+
+  if (!owner || !owner.ativo) {
+    return null;
+  }
+
+  return owner.id;
+}
+
 function normalizeFilePath(file) {
   return file ? `/uploads/${path.basename(file.path)}` : null;
 }
@@ -796,6 +823,12 @@ app.post("/projetos", authRequired, async (req, res) => {
       return res.status(400).json({ error: "O nome do cliente e obrigatorio." });
     }
 
+    const assignedOwnerId = await resolveAssignedOwnerId(req.body.owner_user_id, req.user);
+
+    if (!assignedOwnerId) {
+      return res.status(400).json({ error: "Usuario responsavel invalido." });
+    }
+
     await client.query("BEGIN");
 
     const projetoResult = await client.query(
@@ -842,18 +875,20 @@ app.post("/projetos", authRequired, async (req, res) => {
         NULL::VARCHAR AS owner_email,
         created_at,
         updated_at`,
-      [...buildProjetoValues(req.body, req.user.nome), STATUS_PADRAO, req.user.id]
+      [...buildProjetoValues(req.body, req.user.nome), STATUS_PADRAO, assignedOwnerId]
     );
 
     await createStatusHistory(client, projetoResult.rows[0].id, null, STATUS_PADRAO, req.user.id);
     await client.query("COMMIT");
 
+    const owner = await getUserById(assignedOwnerId);
+
     return res.status(201).json({
       message: "Projeto criado com sucesso.",
       projeto: mapProjeto({
         ...projetoResult.rows[0],
-        owner_name: req.user.nome,
-        owner_email: req.user.email,
+        owner_name: owner?.nome || req.user.nome,
+        owner_email: owner?.email || req.user.email,
       }),
     });
   } catch (err) {
@@ -879,6 +914,15 @@ app.put("/projetos/:id/dados", authRequired, async (req, res) => {
       return res.status(400).json({ error: "O nome do cliente e obrigatorio." });
     }
 
+    const assignedOwnerId = await resolveAssignedOwnerId(
+      req.user.role === "admin" ? req.body.owner_user_id : acesso.projeto.created_by,
+      req.user
+    );
+
+    if (!assignedOwnerId) {
+      return res.status(400).json({ error: "Usuario responsavel invalido." });
+    }
+
     const result = await pool.query(
       `UPDATE projetos
        SET
@@ -896,8 +940,9 @@ app.put("/projetos/:id/dados", authRequired, async (req, res) => {
          valor_projeto = $12,
          vendedor_nome = $13,
          origem_lead = $14,
+         created_by = $15,
          updated_at = NOW()
-       WHERE id = $15
+       WHERE id = $16
       RETURNING
          id,
          cliente_nome,
@@ -920,7 +965,7 @@ app.put("/projetos/:id/dados", authRequired, async (req, res) => {
          (SELECT email FROM users WHERE users.id = projetos.created_by) AS owner_email,
          created_at,
          updated_at`,
-      [...buildProjetoValues(req.body, acesso.projeto.vendedor_nome || req.user.nome), id]
+      [...buildProjetoValues(req.body, acesso.projeto.vendedor_nome || req.user.nome), assignedOwnerId, id]
     );
 
     return res.json({

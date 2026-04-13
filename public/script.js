@@ -93,6 +93,17 @@ function atualizarPermissoesUI() {
   if (botaoExcluir) {
     botaoExcluir.style.display = canDeleteProject() ? "inline-flex" : "none";
   }
+
+  const ownerProjetoWrapper = document.getElementById("ownerProjetoWrapper");
+  const detOwnerWrapper = document.getElementById("detOwnerWrapper");
+
+  if (ownerProjetoWrapper) {
+    ownerProjetoWrapper.style.display = isAdmin() ? "block" : "none";
+  }
+
+  if (detOwnerWrapper) {
+    detOwnerWrapper.style.display = isAdmin() ? "block" : "none";
+  }
 }
 
 function mostrarCRM() {
@@ -319,6 +330,49 @@ async function carregar() {
   }
 }
 
+async function garantirUsuariosCarregados() {
+  if (!isAdmin()) {
+    return [];
+  }
+
+  if (usuariosCache.length) {
+    return usuariosCache;
+  }
+
+  const response = await apiFetch("/usuarios");
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || "Erro ao carregar usuarios.");
+  }
+
+  usuariosCache = data.usuarios || [];
+  return usuariosCache;
+}
+
+function preencherSelectResponsavel(selectId, selectedId) {
+  const select = document.getElementById(selectId);
+
+  if (!select) {
+    return;
+  }
+
+  if (!isAdmin()) {
+    select.innerHTML = "";
+    return;
+  }
+
+  const options = usuariosCache
+    .filter((usuario) => usuario.ativo)
+    .map((usuario) => {
+      const selected = String(usuario.id) === String(selectedId) ? "selected" : "";
+      return `<option value="${usuario.id}" ${selected}>${usuario.nome} - ${roleLabel(usuario.role)}</option>`;
+    })
+    .join("");
+
+  select.innerHTML = options;
+}
+
 function renderProjetos(listaProjetos) {
   const colunas = {
     Documentacao: document.getElementById("Documentacao"),
@@ -444,6 +498,12 @@ function novoProjeto() {
     return;
   }
 
+  if (isAdmin()) {
+    garantirUsuariosCarregados()
+      .then(() => preencherSelectResponsavel("ownerProjeto", currentUser?.id))
+      .catch((err) => alert(err.message || "Erro ao carregar usuarios."));
+  }
+
   document.getElementById("modal").style.display = "block";
 }
 
@@ -470,6 +530,7 @@ async function salvarProjeto() {
         valor: document.getElementById("valor").value.trim(),
         vendedor: document.getElementById("vendedor").value.trim(),
         origem: document.getElementById("origem").value.trim(),
+        owner_user_id: isAdmin() ? document.getElementById("ownerProjeto").value : undefined,
       }),
     });
 
@@ -508,6 +569,10 @@ function limparFormularioProjeto() {
 
   document.getElementById("tipo").selectedIndex = 0;
   document.getElementById("ligacao").selectedIndex = 0;
+
+  if (document.getElementById("ownerProjeto")) {
+    document.getElementById("ownerProjeto").innerHTML = "";
+  }
 }
 
 async function abrirDetalhes(id) {
@@ -517,6 +582,10 @@ async function abrirDetalhes(id) {
 
     if (!response.ok) {
       throw new Error(data.error || "Erro ao carregar detalhes.");
+    }
+
+    if (isAdmin()) {
+      await garantirUsuariosCarregados();
     }
 
     projetoDetalheAtual = id;
@@ -559,6 +628,7 @@ function preencherDetalhes(projeto, historico, observacoes, documentos, document
   document.getElementById("detOrigem").value = projeto.origem || "";
   document.getElementById("detalheStatus").textContent =
     `Status atual: ${formatarValor(projeto.status)} | Usuario: ${formatarValor(projeto.owner_name || projeto.owner_email)}`;
+  preencherSelectResponsavel("detOwnerProjeto", projeto.created_by || currentUser?.id);
   document.getElementById("botaoExcluirProjeto").style.display = canDeleteProject() ? "inline-flex" : "none";
   preencherDocumentacao(documentos, documentoLinks);
 
@@ -715,6 +785,7 @@ async function salvarEdicaoProjeto() {
         valor: document.getElementById("detValor").value.trim(),
         vendedor: document.getElementById("detVendedor").value.trim(),
         origem: document.getElementById("detOrigem").value.trim(),
+        owner_user_id: isAdmin() ? document.getElementById("detOwnerProjeto").value : undefined,
       }),
     });
 

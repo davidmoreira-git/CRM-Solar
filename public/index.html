@@ -708,6 +708,9 @@ button.perigo {
   <input id="valor" placeholder="Valor R$"><br>
   <input id="vendedor" placeholder="Vendedor"><br>
   <input id="origem" placeholder="Origem do Lead"><br>
+  <div id="ownerProjetoWrapper" style="display:none;">
+    <select id="ownerProjeto"></select><br>
+  </div>
   <div class="acoes-modal">
     <button onclick="salvarProjeto()">Salvar</button>
     <button class="secundario" onclick="fecharModal()">Cancelar</button>
@@ -795,6 +798,10 @@ button.perigo {
               <div class="full">
                 <label for="detOrigem">Origem</label>
                 <input id="detOrigem">
+              </div>
+              <div class="full" id="detOwnerWrapper" style="display:none;">
+                <label for="detOwnerProjeto">Responsavel pelo projeto</label>
+                <select id="detOwnerProjeto"></select>
               </div>
             </div>
             <div class="acoes-modal">

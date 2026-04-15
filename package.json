@@ -6,7 +6,8 @@
   "scripts": {
     "db:init": "node -e \"require('./db/init').initializeDatabase().then(() => { console.log('Banco inicializado com sucesso.'); process.exit(0); }).catch((err) => { console.error(err); process.exit(1); })\"",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
+    "start": "node server.js",
+    "planilha:proposta": "node tools/gerar_planilha_proposta.js"
   },
   "keywords": [],
   "author": "",

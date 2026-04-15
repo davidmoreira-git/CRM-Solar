@@ -301,6 +301,23 @@ function formatarValor(valor) {
   return valor === null || valor === undefined || valor === "" ? "-" : valor;
 }
 
+function formatarPotencia(valor) {
+  if (valor === null || valor === undefined || valor === "") {
+    return "-";
+  }
+
+  const numero = Number(valor);
+
+  if (Number.isNaN(numero)) {
+    return valor;
+  }
+
+  return `${numero.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })} kWp`;
+}
+
 function formatarData(data) {
   return data ? new Date(data).toLocaleString("pt-BR") : "-";
 }
@@ -510,7 +527,7 @@ function renderProjetos(listaProjetos) {
       </div>
       <div class="card-detalhes">
         Cidade: ${formatarValor(projeto.cidade)}<br>
-        Potencia: ${formatarValor(projeto.potencia)}<br>
+        Potencia: ${formatarPotencia(projeto.potencia)}<br>
         Vendedor: ${formatarValor(projeto.vendedor)}<br>
         Usuario: ${formatarValor(projeto.owner_name || projeto.owner_email)}
       </div>
@@ -723,7 +740,13 @@ function preencherDetalhes(projeto, historico, observacoes, documentos, document
   document.getElementById("detDocumento").value = projeto.documento || "";
   document.getElementById("detCidade").value = projeto.cidade || "";
   document.getElementById("detEstado").value = projeto.estado || "";
-  document.getElementById("detPotencia").value = projeto.potencia || "";
+  document.getElementById("detPotencia").value =
+    projeto.potencia === null || projeto.potencia === undefined || projeto.potencia === ""
+      ? ""
+      : Number(projeto.potencia).toLocaleString("pt-BR", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        });
   document.getElementById("detTipo").value = projeto.tipo || "";
   document.getElementById("detLigacao").value = projeto.ligacao || "";
   document.getElementById("detTensao").value = projeto.tensao || "";

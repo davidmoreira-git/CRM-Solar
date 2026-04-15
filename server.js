@@ -175,7 +175,24 @@ function normalizeNumber(value) {
     return null;
   }
 
-  const normalized = String(value).replace(/\./g, "").replace(",", ".");
+  let normalized = String(value).trim().replace(/\s+/g, "");
+
+  if (normalized.includes(",") && normalized.includes(".")) {
+    if (normalized.lastIndexOf(",") > normalized.lastIndexOf(".")) {
+      normalized = normalized.replace(/\./g, "").replace(",", ".");
+    } else {
+      normalized = normalized.replace(/,/g, "");
+    }
+  } else if (normalized.includes(",")) {
+    normalized = normalized.replace(",", ".");
+  } else {
+    const dotParts = normalized.split(".");
+    if (dotParts.length > 2) {
+      const decimalPart = dotParts.pop();
+      normalized = `${dotParts.join("")}.${decimalPart}`;
+    }
+  }
+
   const parsed = Number(normalized);
   return Number.isNaN(parsed) ? null : parsed;
 }

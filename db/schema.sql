@@ -150,6 +150,67 @@ CREATE TABLE IF NOT EXISTS notificacoes (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS propostas (
+  id BIGSERIAL PRIMARY KEY,
+  projeto_id BIGINT REFERENCES projetos(id) ON DELETE SET NULL,
+  created_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  owner_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  cliente_nome VARCHAR(150) NOT NULL,
+  cep VARCHAR(10),
+  cidade VARCHAR(120),
+  estado VARCHAR(120),
+  concessionaria VARCHAR(120),
+  tipo_estrutura VARCHAR(120),
+  fase VARCHAR(30),
+  tensao VARCHAR(30),
+  modo_dimensionamento VARCHAR(40) NOT NULL DEFAULT 'consumo_medio',
+  valor_referencia NUMERIC(12, 2),
+  consumo_medio_kwh NUMERIC(12, 2),
+  valor_medio_reais NUMERIC(12, 2),
+  potencia_sistema_kwp NUMERIC(12, 2),
+  consumo_real_kwh NUMERIC(12, 2),
+  tarifa_energia NUMERIC(12, 4),
+  fio_b_percentual NUMERIC(6, 2),
+  fio_b_tarifa NUMERIC(12, 4),
+  disponibilidade_kwh NUMERIC(12, 2),
+  produtividade_regional NUMERIC(12, 2),
+  geracao_estimada_kwh NUMERIC(12, 2),
+  potencia_dimensionada_kwp NUMERIC(12, 2),
+  economia_estimada_reais NUMERIC(12, 2),
+  observacoes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE propostas ADD COLUMN IF NOT EXISTS projeto_id BIGINT REFERENCES projetos(id) ON DELETE SET NULL;
+ALTER TABLE propostas ADD COLUMN IF NOT EXISTS created_by BIGINT REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE propostas ADD COLUMN IF NOT EXISTS owner_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE propostas ADD COLUMN IF NOT EXISTS cliente_nome VARCHAR(150);
+ALTER TABLE propostas ADD COLUMN IF NOT EXISTS cep VARCHAR(10);
+ALTER TABLE propostas ADD COLUMN IF NOT EXISTS cidade VARCHAR(120);
+ALTER TABLE propostas ADD COLUMN IF NOT EXISTS estado VARCHAR(120);
+ALTER TABLE propostas ADD COLUMN IF NOT EXISTS concessionaria VARCHAR(120);
+ALTER TABLE propostas ADD COLUMN IF NOT EXISTS tipo_estrutura VARCHAR(120);
+ALTER TABLE propostas ADD COLUMN IF NOT EXISTS fase VARCHAR(30);
+ALTER TABLE propostas ADD COLUMN IF NOT EXISTS tensao VARCHAR(30);
+ALTER TABLE propostas ADD COLUMN IF NOT EXISTS modo_dimensionamento VARCHAR(40) NOT NULL DEFAULT 'consumo_medio';
+ALTER TABLE propostas ADD COLUMN IF NOT EXISTS valor_referencia NUMERIC(12, 2);
+ALTER TABLE propostas ADD COLUMN IF NOT EXISTS consumo_medio_kwh NUMERIC(12, 2);
+ALTER TABLE propostas ADD COLUMN IF NOT EXISTS valor_medio_reais NUMERIC(12, 2);
+ALTER TABLE propostas ADD COLUMN IF NOT EXISTS potencia_sistema_kwp NUMERIC(12, 2);
+ALTER TABLE propostas ADD COLUMN IF NOT EXISTS consumo_real_kwh NUMERIC(12, 2);
+ALTER TABLE propostas ADD COLUMN IF NOT EXISTS tarifa_energia NUMERIC(12, 4);
+ALTER TABLE propostas ADD COLUMN IF NOT EXISTS fio_b_percentual NUMERIC(6, 2);
+ALTER TABLE propostas ADD COLUMN IF NOT EXISTS fio_b_tarifa NUMERIC(12, 4);
+ALTER TABLE propostas ADD COLUMN IF NOT EXISTS disponibilidade_kwh NUMERIC(12, 2);
+ALTER TABLE propostas ADD COLUMN IF NOT EXISTS produtividade_regional NUMERIC(12, 2);
+ALTER TABLE propostas ADD COLUMN IF NOT EXISTS geracao_estimada_kwh NUMERIC(12, 2);
+ALTER TABLE propostas ADD COLUMN IF NOT EXISTS potencia_dimensionada_kwp NUMERIC(12, 2);
+ALTER TABLE propostas ADD COLUMN IF NOT EXISTS economia_estimada_reais NUMERIC(12, 2);
+ALTER TABLE propostas ADD COLUMN IF NOT EXISTS observacoes TEXT;
+ALTER TABLE propostas ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+ALTER TABLE propostas ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
 CREATE TABLE IF NOT EXISTS projeto_documentos (
   projeto_id BIGINT PRIMARY KEY REFERENCES projetos(id) ON DELETE CASCADE,
   cnh_path TEXT,
@@ -198,6 +259,8 @@ CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_projetos_status_atual ON projetos(status_atual);
 CREATE INDEX IF NOT EXISTS idx_projetos_cliente_nome ON projetos(cliente_nome);
 CREATE INDEX IF NOT EXISTS idx_projetos_created_by ON projetos(created_by);
+CREATE INDEX IF NOT EXISTS idx_propostas_owner_user ON propostas(owner_user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_propostas_projeto ON propostas(projeto_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_status_historico_projeto ON projeto_status_historico(projeto_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_observacoes_projeto ON projeto_observacoes(projeto_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_notificacoes_user_lida ON notificacoes(user_id, lida, created_at DESC);

@@ -6,13 +6,50 @@ const ROLE_LABELS = {
   operador: "Operador",
   client: "Cliente",
 };
+const CONCESSIONARIAS_POR_UF = {
+  AC: { concessionaria: "Energisa Acre", tarifaEnergia: 1.03, fioBTarifa: 0.29, produtividade: 134 },
+  AL: { concessionaria: "Equatorial Alagoas", tarifaEnergia: 0.97, fioBTarifa: 0.27, produtividade: 145 },
+  AM: { concessionaria: "Amazonas Energia", tarifaEnergia: 1.08, fioBTarifa: 0.31, produtividade: 132 },
+  AP: { concessionaria: "CEA Equatorial", tarifaEnergia: 1.01, fioBTarifa: 0.28, produtividade: 136 },
+  BA: { concessionaria: "Neoenergia Coelba", tarifaEnergia: 0.94, fioBTarifa: 0.26, produtividade: 150 },
+  CE: { concessionaria: "Enel Ceara", tarifaEnergia: 0.96, fioBTarifa: 0.28, produtividade: 149 },
+  DF: { concessionaria: "Neoenergia Brasilia", tarifaEnergia: 0.99, fioBTarifa: 0.28, produtividade: 150 },
+  ES: { concessionaria: "EDP Espirito Santo", tarifaEnergia: 0.96, fioBTarifa: 0.27, produtividade: 142 },
+  GO: { concessionaria: "Equatorial Goias", tarifaEnergia: 0.92, fioBTarifa: 0.25, produtividade: 154 },
+  MA: { concessionaria: "Equatorial Maranhao", tarifaEnergia: 0.96, fioBTarifa: 0.27, produtividade: 148 },
+  MG: { concessionaria: "Cemig", tarifaEnergia: 0.94, fioBTarifa: 0.26, produtividade: 145 },
+  MS: { concessionaria: "Energisa MS", tarifaEnergia: 0.95, fioBTarifa: 0.27, produtividade: 150 },
+  MT: { concessionaria: "Energisa MT", tarifaEnergia: 0.97, fioBTarifa: 0.28, produtividade: 156 },
+  PA: { concessionaria: "Equatorial Para", tarifaEnergia: 1.01, fioBTarifa: 0.29, produtividade: 142 },
+  PB: { concessionaria: "Energisa PB", tarifaEnergia: 0.98, fioBTarifa: 0.28, produtividade: 144 },
+  PE: { concessionaria: "Neoenergia Pernambuco", tarifaEnergia: 0.97, fioBTarifa: 0.27, produtividade: 147 },
+  PI: { concessionaria: "Equatorial Piaui", tarifaEnergia: 0.97, fioBTarifa: 0.27, produtividade: 149 },
+  PR: { concessionaria: "Copel", tarifaEnergia: 0.89, fioBTarifa: 0.24, produtividade: 137 },
+  RJ: { concessionaria: "Light / Enel RJ", tarifaEnergia: 1.03, fioBTarifa: 0.31, produtividade: 141 },
+  RN: { concessionaria: "Neoenergia Cosern", tarifaEnergia: 0.98, fioBTarifa: 0.28, produtividade: 148 },
+  RO: { concessionaria: "Energisa RO", tarifaEnergia: 0.99, fioBTarifa: 0.28, produtividade: 141 },
+  RR: { concessionaria: "Roraima Energia", tarifaEnergia: 1.06, fioBTarifa: 0.30, produtividade: 135 },
+  RS: { concessionaria: "RGE / CEEE", tarifaEnergia: 0.88, fioBTarifa: 0.24, produtividade: 132 },
+  SC: { concessionaria: "Celesc", tarifaEnergia: 0.87, fioBTarifa: 0.23, produtividade: 134 },
+  SE: { concessionaria: "Energisa SE", tarifaEnergia: 0.97, fioBTarifa: 0.27, produtividade: 146 },
+  SP: { concessionaria: "CPFL / Enel SP", tarifaEnergia: 0.95, fioBTarifa: 0.28, produtividade: 142 },
+  TO: { concessionaria: "Energisa TO", tarifaEnergia: 0.95, fioBTarifa: 0.27, produtividade: 151 },
+};
+const DEFAULT_CONCESSIONARIA = { concessionaria: "Confirmar concessionaria", tarifaEnergia: 0.95, fioBTarifa: 0.27, produtividade: 145 };
+const DISPONIBILIDADE_POR_FASE = {
+  Monofasico: 30,
+  Bifasico: 50,
+  Trifasico: 100,
+};
 
 let projetoDetalheAtual = null;
 let projetosCache = [];
 let usuariosCache = [];
 let notificacoesCache = [];
+let propostasCache = [];
 let authToken = localStorage.getItem(TOKEN_KEY) || "";
 let currentUser = JSON.parse(localStorage.getItem(USER_KEY) || "null");
+let propostaAtualId = null;
 
 function setMensagem(elementId, message, type) {
   const element = document.getElementById(elementId);
@@ -49,6 +86,10 @@ function canDeleteProject() {
   return currentUser?.role === "admin" || currentUser?.role === "operador";
 }
 
+function canCreateProposal() {
+  return currentUser?.role === "admin" || currentUser?.role === "operador";
+}
+
 function salvarSessao(token, user) {
   authToken = token;
   currentUser = user;
@@ -78,6 +119,8 @@ function atualizarPermissoesUI() {
   const botaoUsuarios = document.getElementById("botaoUsuarios");
   const painelAvisoSenha = document.getElementById("avisoTrocaSenha");
   const botaoExcluir = document.getElementById("botaoExcluirProjeto");
+  const botaoNovaPropostaCentral = document.getElementById("botaoNovaPropostaCentral");
+  const botaoSalvarPropostaCentral = document.getElementById("botaoSalvarPropostaCentral");
 
   if (botaoNovoProjeto) {
     botaoNovoProjeto.style.display = canCreateProject() ? "inline-flex" : "none";
@@ -93,6 +136,14 @@ function atualizarPermissoesUI() {
 
   if (botaoExcluir) {
     botaoExcluir.style.display = canDeleteProject() ? "inline-flex" : "none";
+  }
+
+  if (botaoNovaPropostaCentral) {
+    botaoNovaPropostaCentral.style.display = canCreateProposal() ? "inline-flex" : "none";
+  }
+
+  if (botaoSalvarPropostaCentral) {
+    botaoSalvarPropostaCentral.style.display = canCreateProposal() ? "inline-flex" : "none";
   }
 
   const ownerProjetoWrapper = document.getElementById("ownerProjetoWrapper");
@@ -121,6 +172,7 @@ function mostrarLogin() {
   fecharModalUsuarios();
   fecharModalSenha();
   fecharModalNotificacoes();
+  fecharCentralPropostas();
   atualizarUsuarioAtual();
 }
 
@@ -293,7 +345,9 @@ function logout() {
   projetosCache = [];
   usuariosCache = [];
   notificacoesCache = [];
+  propostasCache = [];
   projetoDetalheAtual = null;
+  propostaAtualId = null;
   renderProjetos([]);
   mostrarLogin();
 }
@@ -338,9 +392,14 @@ async function carregar() {
       status: normalizarStatus(projeto.status),
     }));
     aplicarFiltros();
+    preencherProjetosDaProposta();
 
     if (canManageUsers() && document.getElementById("usuariosOverlay").style.display === "block") {
       await carregarUsuarios();
+    }
+
+    if (document.getElementById("propostasOverlay").style.display === "block") {
+      await carregarPropostas();
     }
   } catch (err) {
     console.error(err);
@@ -1247,6 +1306,586 @@ async function gerarSenhaTemporaria(userId) {
     console.error(err);
     alert(err.message || "Erro ao gerar senha temporaria.");
   }
+}
+
+function formatarNumero(valor, casas = 2) {
+  const numero = Number(valor || 0);
+  return numero.toLocaleString("pt-BR", {
+    minimumFractionDigits: casas,
+    maximumFractionDigits: casas,
+  });
+}
+
+function formatarMoeda(valor) {
+  return Number(valor || 0).toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+}
+
+function preencherProjetosDaProposta(selectedId = "") {
+  const select = document.getElementById("propProjeto");
+
+  if (!select) {
+    return;
+  }
+
+  const options = ['<option value="">Sem vinculo direto</option>']
+    .concat(
+      projetosCache.map(
+        (projeto) =>
+          `<option value="${projeto.id}" ${String(projeto.id) === String(selectedId) ? "selected" : ""}>${projeto.cliente_nome} - ${projeto.cidade || "Sem cidade"}</option>`
+      )
+    )
+    .join("");
+
+  select.innerHTML = options;
+}
+
+function obterParametrosRegiao(uf) {
+  return CONCESSIONARIAS_POR_UF[String(uf || "").trim().toUpperCase()] || DEFAULT_CONCESSIONARIA;
+}
+
+function obterDisponibilidadeFase() {
+  return DISPONIBILIDADE_POR_FASE[document.getElementById("propFase")?.value] || 30;
+}
+
+function obterModoProposta() {
+  return document.getElementById("propModo")?.value || "consumo_medio";
+}
+
+function obterReferenciasProposta() {
+  return {
+    proposta_id: propostaAtualId,
+    projeto_id: document.getElementById("propProjeto")?.value || null,
+    cliente_nome: document.getElementById("propClienteNome")?.value.trim() || "",
+    cep: document.getElementById("propCep")?.value.trim() || "",
+    cidade: document.getElementById("propCidade")?.value.trim() || "",
+    estado: document.getElementById("propEstado")?.value.trim() || "",
+    concessionaria: document.getElementById("propConcessionaria")?.value.trim() || "",
+    tipo_estrutura: document.getElementById("propTipoEstrutura")?.value || "",
+    fase: document.getElementById("propFase")?.value || "Monofasico",
+    tensao: document.getElementById("propTensao")?.value || "220V",
+    modo_dimensionamento: obterModoProposta(),
+    valor_referencia: document.getElementById("propValorReferencia")?.value.trim() || "",
+    tarifa_energia: document.getElementById("propTarifaEnergia")?.value.trim() || "",
+    fio_b_tarifa: document.getElementById("propFioBTarifa")?.value.trim() || "",
+    fio_b_percentual: document.getElementById("propFioBPercentual")?.value.trim() || "",
+    produtividade_regional: document.getElementById("propProdutividade")?.value.trim() || "",
+    disponibilidade_kwh: document.getElementById("propDisponibilidade")?.value.trim() || "",
+    observacoes: document.getElementById("propObservacoes")?.value.trim() || "",
+  };
+}
+
+function calcularProposta() {
+  const modo = obterModoProposta();
+  const valorReferencia = normalizeNumeroJs(document.getElementById("propValorReferencia")?.value);
+  const tarifaEnergia = normalizeNumeroJs(document.getElementById("propTarifaEnergia")?.value);
+  const fioBTarifa = normalizeNumeroJs(document.getElementById("propFioBTarifa")?.value);
+  const fioBPercentualInput = normalizeNumeroJs(document.getElementById("propFioBPercentual")?.value);
+  const produtividade = normalizeNumeroJs(document.getElementById("propProdutividade")?.value);
+  const disponibilidade = normalizeNumeroJs(document.getElementById("propDisponibilidade")?.value) || obterDisponibilidadeFase();
+
+  const fioBPercentual = fioBPercentualInput || (tarifaEnergia ? (fioBTarifa / tarifaEnergia) * 100 : 0);
+  let consumoReferencia = 0;
+  let potenciaDimensionada = 0;
+  let geracaoEstimada = 0;
+  let valorMedioReais = 0;
+  let potenciaSistemaKwp = 0;
+  let consumoRealKwh = 0;
+  let consumoMedioKwh = 0;
+
+  if (modo === "valor_medio") {
+    valorMedioReais = valorReferencia;
+    consumoReferencia = tarifaEnergia ? valorReferencia / tarifaEnergia : 0;
+  } else if (modo === "potencia_sistema") {
+    potenciaSistemaKwp = valorReferencia;
+    potenciaDimensionada = valorReferencia;
+    geracaoEstimada = valorReferencia * produtividade;
+    consumoReferencia = geracaoEstimada + disponibilidade;
+  } else if (modo === "consumo_real") {
+    consumoRealKwh = valorReferencia;
+    consumoReferencia = valorReferencia;
+  } else {
+    consumoMedioKwh = valorReferencia;
+    consumoReferencia = valorReferencia;
+  }
+
+  if (modo !== "potencia_sistema") {
+    const consumoCompensavel = Math.max(consumoReferencia - disponibilidade, 0);
+    potenciaDimensionada = produtividade ? consumoCompensavel / produtividade : 0;
+    geracaoEstimada = potenciaDimensionada * produtividade;
+  }
+
+  const economiaBruta = geracaoEstimada * tarifaEnergia;
+  const custoFioB = geracaoEstimada * fioBTarifa;
+  const economiaEstimada = Math.max(economiaBruta - custoFioB, 0);
+  const coberturaPercentual = consumoReferencia ? (geracaoEstimada / consumoReferencia) * 100 : 0;
+
+  return {
+    modo_dimensionamento: modo,
+    valor_referencia: valorReferencia,
+    consumo_medio_kwh: consumoMedioKwh || (modo === "consumo_medio" ? consumoReferencia : 0),
+    valor_medio_reais: valorMedioReais,
+    potencia_sistema_kwp: potenciaSistemaKwp,
+    consumo_real_kwh: consumoRealKwh || (modo === "consumo_real" ? consumoReferencia : 0),
+    tarifa_energia: tarifaEnergia,
+    fio_b_percentual: fioBPercentual,
+    fio_b_tarifa: fioBTarifa,
+    disponibilidade_kwh: disponibilidade,
+    produtividade_regional: produtividade,
+    geracao_estimada_kwh: geracaoEstimada,
+    potencia_dimensionada_kwp: potenciaDimensionada,
+    economia_estimada_reais: economiaEstimada,
+    consumo_referencia_kwh: consumoReferencia,
+    cobertura_percentual: coberturaPercentual,
+  };
+}
+
+function normalizeNumeroJs(value) {
+  if (value === undefined || value === null || value === "") {
+    return 0;
+  }
+
+  const normalizado = String(value).replace(/\./g, "").replace(",", ".");
+  const numero = Number(normalizado);
+  return Number.isNaN(numero) ? 0 : numero;
+}
+
+function atualizarResumoCalculoProposta() {
+  const calculo = calcularProposta();
+  document.getElementById("resumoConsumoReferencia").textContent = `${formatarNumero(calculo.consumo_referencia_kwh)} kWh`;
+  document.getElementById("resumoPotenciaDimensionada").textContent = `${formatarNumero(calculo.potencia_dimensionada_kwp)} kWp`;
+  document.getElementById("resumoGeracaoEstimada").textContent = `${formatarNumero(calculo.geracao_estimada_kwh)} kWh`;
+  document.getElementById("resumoEconomiaEstimada").textContent = formatarMoeda(calculo.economia_estimada_reais);
+}
+
+function gerarHtmlPreviewProposta() {
+  const refs = obterReferenciasProposta();
+  const calculo = calcularProposta();
+
+  return `
+    <div class="proposta-preview-header">
+      <h3>Proposta Comercial Solar</h3>
+      <p>${refs.cliente_nome || "Cliente sem nome"}${refs.concessionaria ? ` | ${refs.concessionaria}` : ""}</p>
+    </div>
+    <div class="proposta-preview-body">
+      <div class="preview-grid">
+        <div class="preview-box">
+          <span>Potencia dimensionada</span>
+          <strong>${formatarNumero(calculo.potencia_dimensionada_kwp)} kWp</strong>
+        </div>
+        <div class="preview-box">
+          <span>Geracao estimada</span>
+          <strong>${formatarNumero(calculo.geracao_estimada_kwh)} kWh/mes</strong>
+        </div>
+        <div class="preview-box">
+          <span>Economia estimada</span>
+          <strong>${formatarMoeda(calculo.economia_estimada_reais)}</strong>
+        </div>
+        <div class="preview-box">
+          <span>Cobertura estimada</span>
+          <strong>${formatarNumero(calculo.cobertura_percentual)}%</strong>
+        </div>
+      </div>
+
+      <div class="preview-grid">
+        <div class="preview-box">
+          <span>Local</span>
+          <strong>${refs.cidade || "-"}${refs.estado ? ` / ${refs.estado}` : ""}</strong>
+        </div>
+        <div class="preview-box">
+          <span>Configuracao eletrica</span>
+          <strong>${refs.fase || "-"} | ${refs.tensao || "-"}</strong>
+        </div>
+        <div class="preview-box">
+          <span>Estrutura</span>
+          <strong>${refs.tipo_estrutura || "-"}</strong>
+        </div>
+        <div class="preview-box">
+          <span>Tarifa fio B</span>
+          <strong>${formatarMoeda(calculo.fio_b_tarifa)} | ${formatarNumero(calculo.fio_b_percentual)}%</strong>
+        </div>
+      </div>
+
+      <div class="proposta-secao" style="padding:0;border:none;background:transparent;">
+        <h4 style="margin:0 0 10px;">Premissas do calculo</h4>
+        <ul class="preview-lista">
+          <li>Modo de entrada: ${document.getElementById("propValorReferenciaLabel")?.textContent || "-"}</li>
+          <li>Consumo de referencia: ${formatarNumero(calculo.consumo_referencia_kwh)} kWh por mes.</li>
+          <li>Produtividade regional considerada: ${formatarNumero(calculo.produtividade_regional)} kWh/kWp mes.</li>
+          <li>Disponibilidade minima da fase: ${formatarNumero(calculo.disponibilidade_kwh)} kWh.</li>
+          <li>Tarifa base de energia: ${formatarMoeda(calculo.tarifa_energia)} por kWh.</li>
+        </ul>
+      </div>
+
+      <div class="preview-aviso">
+        Esta proposta e um pre-dimensionamento comercial baseado nas premissas informadas no CRM, com consideracao de tarifa de fio B. A confirmacao final deve passar por vistoria, analise tecnica, padrao de entrada, orientacao solar e regras da concessionaria da regiao.
+      </div>
+
+      <div class="preview-box">
+        <span>Observacoes</span>
+        <strong style="font-size:15px;font-weight:600;line-height:1.6;">${refs.observacoes || "Sem observacoes adicionais."}</strong>
+      </div>
+    </div>
+  `;
+}
+
+function atualizarPreviewProposta() {
+  const preview = document.getElementById("propostaPreview");
+
+  if (!preview) {
+    return;
+  }
+
+  atualizarResumoCalculoProposta();
+  preview.innerHTML = gerarHtmlPreviewProposta();
+}
+
+function selecionarModoProposta(modo) {
+  document.getElementById("propModo").value = modo;
+
+  const labels = {
+    consumo_medio: "Media desejada (kWh)",
+    valor_medio: "Valor medio desejado (R$)",
+    potencia_sistema: "Potencia desejada do sistema (kWp)",
+    consumo_real: "Consumo real desejado (kWh)",
+  };
+
+  document.getElementById("propValorReferenciaLabel").textContent = labels[modo] || "Informe o valor desejado";
+
+  [
+    ["modoConsumoMedio", "consumo_medio"],
+    ["modoValorMedio", "valor_medio"],
+    ["modoPotenciaSistema", "potencia_sistema"],
+    ["modoConsumoReal", "consumo_real"],
+  ].forEach(([id, value]) => {
+    document.getElementById(id)?.classList.toggle("ativo", value === modo);
+  });
+
+  recalcularProposta();
+}
+
+function aplicarParametrosRegiao() {
+  const uf = document.getElementById("propEstado").value.trim();
+  const parametros = obterParametrosRegiao(uf);
+
+  if (!document.getElementById("propConcessionaria").value.trim()) {
+    document.getElementById("propConcessionaria").value = parametros.concessionaria;
+  }
+
+  if (!document.getElementById("propTarifaEnergia").value.trim()) {
+    document.getElementById("propTarifaEnergia").value = formatarNumero(parametros.tarifaEnergia, 4);
+  }
+
+  if (!document.getElementById("propFioBTarifa").value.trim()) {
+    document.getElementById("propFioBTarifa").value = formatarNumero(parametros.fioBTarifa, 4);
+  }
+
+  if (!document.getElementById("propProdutividade").value.trim()) {
+    document.getElementById("propProdutividade").value = formatarNumero(parametros.produtividade, 2);
+  }
+
+  document.getElementById("propDisponibilidade").value = formatarNumero(obterDisponibilidadeFase(), 2);
+  recalcularProposta();
+}
+
+function aplicarParametrosConcessionaria() {
+  const tarifaEnergiaInput = document.getElementById("propTarifaEnergia");
+  const fioBTarifaInput = document.getElementById("propFioBTarifa");
+
+  if (!tarifaEnergiaInput.value.trim() || !fioBTarifaInput.value.trim()) {
+    aplicarParametrosRegiao();
+    return;
+  }
+
+  recalcularProposta();
+}
+
+async function buscarCepProposta() {
+  const cep = (document.getElementById("propCep").value || "").replace(/\D/g, "");
+
+  if (cep.length !== 8) {
+    alert("Informe um CEP valido com 8 numeros.");
+    return;
+  }
+
+  try {
+    const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+    const data = await response.json();
+
+    if (!response.ok || data.erro) {
+      throw new Error("CEP nao encontrado.");
+    }
+
+    document.getElementById("propCidade").value = data.localidade || "";
+    document.getElementById("propEstado").value = data.uf || "";
+    aplicarParametrosRegiao();
+  } catch (err) {
+    console.error(err);
+    alert(err.message || "Nao foi possivel consultar o CEP.");
+  }
+}
+
+function sincronizarProjetoNaProposta() {
+  const projetoId = document.getElementById("propProjeto").value;
+  const projeto = projetosCache.find((item) => String(item.id) === String(projetoId));
+
+  if (projeto) {
+    document.getElementById("propClienteNome").value = projeto.cliente_nome || "";
+    document.getElementById("propCidade").value = projeto.cidade || "";
+    document.getElementById("propEstado").value = projeto.estado || "";
+    document.getElementById("propConcessionaria").value = projeto.concessionaria || "";
+    document.getElementById("propFase").value = projeto.ligacao || "Monofasico";
+    document.getElementById("propTensao").value = projeto.tensao || "220V";
+    aplicarParametrosRegiao();
+  }
+
+  atualizarPreviewProposta();
+}
+
+function preencherFormularioProposta(proposta = null) {
+  propostaAtualId = proposta?.id || null;
+  preencherProjetosDaProposta(proposta?.projeto_id || "");
+  document.getElementById("propClienteNome").value = proposta?.cliente_nome || "";
+  document.getElementById("propCep").value = proposta?.cep || "";
+  document.getElementById("propCidade").value = proposta?.cidade || "";
+  document.getElementById("propEstado").value = proposta?.estado || "";
+  document.getElementById("propConcessionaria").value = proposta?.concessionaria || "";
+  document.getElementById("propTipoEstrutura").value = proposta?.tipo_estrutura || "";
+  document.getElementById("propFase").value = proposta?.fase || "Monofasico";
+  document.getElementById("propTensao").value = proposta?.tensao || "220V";
+  document.getElementById("propTarifaEnergia").value = proposta?.tarifa_energia ? formatarNumero(proposta.tarifa_energia, 4) : "";
+  document.getElementById("propFioBTarifa").value = proposta?.fio_b_tarifa ? formatarNumero(proposta.fio_b_tarifa, 4) : "";
+  document.getElementById("propFioBPercentual").value = proposta?.fio_b_percentual ? formatarNumero(proposta.fio_b_percentual, 2) : "";
+  document.getElementById("propProdutividade").value = proposta?.produtividade_regional ? formatarNumero(proposta.produtividade_regional, 2) : "";
+  document.getElementById("propDisponibilidade").value = proposta?.disponibilidade_kwh ? formatarNumero(proposta.disponibilidade_kwh, 2) : formatarNumero(obterDisponibilidadeFase(), 2);
+  document.getElementById("propObservacoes").value = proposta?.observacoes || "";
+  document.getElementById("propValorReferencia").value = proposta?.valor_referencia ? formatarNumero(proposta.valor_referencia, 2) : "";
+  selecionarModoProposta(proposta?.modo_dimensionamento || "consumo_medio");
+}
+
+function renderListaPropostas() {
+  const lista = document.getElementById("listaPropostas");
+
+  if (!lista) {
+    return;
+  }
+
+  if (!propostasCache.length) {
+    lista.innerHTML = '<div class="vazio">Nenhuma proposta salva ainda.</div>';
+    return;
+  }
+
+  lista.innerHTML = propostasCache
+    .map(
+      (proposta) => `
+        <div class="proposta-item">
+          <strong>${proposta.cliente_nome}</strong>
+          <small>${proposta.concessionaria || "Concessionaria a confirmar"} | ${formatarData(proposta.created_at)}</small>
+          <small>Potencia: ${formatarNumero(proposta.potencia_dimensionada_kwp || proposta.potencia_sistema_kwp)} kWp</small>
+          <div class="acoes-modal">
+            <button type="button" class="secundario" onclick="carregarProposta(${proposta.id})">Abrir</button>
+          </div>
+        </div>
+      `
+    )
+    .join("");
+}
+
+async function carregarPropostas(projetoId = "") {
+  try {
+    const query = projetoId ? `?projeto_id=${projetoId}` : "";
+    const response = await apiFetch(`/propostas${query}`);
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Erro ao carregar propostas.");
+    }
+
+    propostasCache = data.propostas || [];
+    renderListaPropostas();
+  } catch (err) {
+    console.error(err);
+    alert(err.message || "Erro ao carregar propostas.");
+  }
+}
+
+async function carregarProposta(id) {
+  try {
+    const response = await apiFetch(`/propostas/${id}`);
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Erro ao carregar proposta.");
+    }
+
+    preencherFormularioProposta(data.proposta);
+  } catch (err) {
+    console.error(err);
+    alert(err.message || "Erro ao carregar proposta.");
+  }
+}
+
+function novaProposta(contextoProjetoId = "") {
+  propostaAtualId = null;
+  preencherFormularioProposta(null);
+  if (contextoProjetoId) {
+    document.getElementById("propProjeto").value = String(contextoProjetoId);
+    sincronizarProjetoNaProposta();
+  } else {
+    aplicarParametrosRegiao();
+    atualizarPreviewProposta();
+  }
+}
+
+async function abrirCentralPropostas(contextoProjetoId = "") {
+  document.getElementById("propostasOverlay").style.display = "block";
+  preencherProjetosDaProposta();
+  await carregarPropostas(contextoProjetoId || "");
+  novaProposta(contextoProjetoId || "");
+}
+
+function fecharCentralPropostas() {
+  document.getElementById("propostasOverlay").style.display = "none";
+}
+
+function montarPayloadProposta() {
+  const refs = obterReferenciasProposta();
+  const calculo = calcularProposta();
+
+  return {
+    projeto_id: refs.projeto_id || null,
+    cliente_nome: refs.cliente_nome,
+    cep: refs.cep,
+    cidade: refs.cidade,
+    estado: refs.estado,
+    concessionaria: refs.concessionaria,
+    tipo_estrutura: refs.tipo_estrutura,
+    fase: refs.fase,
+    tensao: refs.tensao,
+    modo_dimensionamento: calculo.modo_dimensionamento,
+    valor_referencia: calculo.valor_referencia,
+    consumo_medio_kwh: calculo.consumo_medio_kwh || (calculo.modo_dimensionamento === "consumo_medio" ? calculo.consumo_referencia_kwh : 0),
+    valor_medio_reais: calculo.valor_medio_reais,
+    potencia_sistema_kwp: calculo.potencia_sistema_kwp,
+    consumo_real_kwh: calculo.consumo_real_kwh || (calculo.modo_dimensionamento === "consumo_real" ? calculo.consumo_referencia_kwh : 0),
+    tarifa_energia: calculo.tarifa_energia,
+    fio_b_percentual: calculo.fio_b_percentual,
+    fio_b_tarifa: calculo.fio_b_tarifa,
+    disponibilidade_kwh: calculo.disponibilidade_kwh,
+    produtividade_regional: calculo.produtividade_regional,
+    geracao_estimada_kwh: calculo.geracao_estimada_kwh,
+    potencia_dimensionada_kwp: calculo.potencia_dimensionada_kwp,
+    economia_estimada_reais: calculo.economia_estimada_reais,
+    observacoes: refs.observacoes,
+  };
+}
+
+async function salvarProposta() {
+  if (!canCreateProposal()) {
+    alert("Seu perfil nao pode criar propostas.");
+    return;
+  }
+
+  const payload = montarPayloadProposta();
+
+  if (!payload.cliente_nome) {
+    alert("Informe o nome do cliente para salvar a proposta.");
+    return;
+  }
+
+  try {
+    const endpoint = propostaAtualId ? `/propostas/${propostaAtualId}` : "/propostas";
+    const method = propostaAtualId ? "PUT" : "POST";
+    const response = await apiFetch(endpoint, {
+      method,
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Erro ao salvar proposta.");
+    }
+
+    propostaAtualId = data.proposta.id;
+    await carregarPropostas(payload.projeto_id || "");
+    preencherFormularioProposta(data.proposta);
+    alert("Proposta salva com sucesso.");
+  } catch (err) {
+    console.error(err);
+    alert(err.message || "Erro ao salvar proposta.");
+  }
+}
+
+function gerarPdfProposta() {
+  const payload = montarPayloadProposta();
+
+  if (!payload.cliente_nome) {
+    alert("Informe o nome do cliente antes de gerar o PDF.");
+    return;
+  }
+
+  const previewHtml = gerarHtmlPreviewProposta();
+  const popup = window.open("", "_blank");
+
+  if (!popup) {
+    alert("Nao foi possivel abrir a janela de impressao. Libere pop-ups para este site.");
+    return;
+  }
+
+  popup.document.write(`
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+      <meta charset="UTF-8">
+      <title>Proposta - ${payload.cliente_nome}</title>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 0; background: #f7efe5; color: #1d2433; }
+        .wrap { padding: 28px; }
+        .proposta-preview { border-radius: 24px; overflow: hidden; background: #fff; border: 1px solid rgba(201,111,26,.18); }
+        .proposta-preview-header { padding: 28px; color: #fff; background: linear-gradient(135deg, #c96f1a, #8c4b10); }
+        .proposta-preview-header h3 { margin: 0; font-size: 28px; }
+        .proposta-preview-header p { margin: 8px 0 0; color: rgba(255,255,255,.86); }
+        .proposta-preview-body { padding: 24px; display: flex; flex-direction: column; gap: 18px; }
+        .preview-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; }
+        .preview-box { padding: 14px; border-radius: 16px; background: #fffdfa; border: 1px solid rgba(201,111,26,.14); }
+        .preview-box span { display:block; color:#6b7280; font-size:12px; margin-bottom:6px; }
+        .preview-box strong { font-size: 18px; }
+        .preview-lista { margin:0; padding-left:18px; line-height:1.55; color:#475467; }
+        .preview-aviso { padding:14px; border-radius:16px; background: rgba(201,111,26,.08); color:#5b3a16; line-height:1.55; }
+        h4 { margin: 0 0 10px; font-size: 16px; }
+        @media print { body { background: white; } .wrap { padding: 0; } }
+      </style>
+    </head>
+    <body>
+      <div class="wrap">${previewHtml}</div>
+      <script>
+        window.onload = function() {
+          setTimeout(function() { window.print(); }, 250);
+        };
+      <\/script>
+    </body>
+    </html>
+  `);
+  popup.document.close();
+}
+
+function recalcularProposta() {
+  const disponibilidadeInput = document.getElementById("propDisponibilidade");
+  if (disponibilidadeInput && !disponibilidadeInput.value.trim()) {
+    disponibilidadeInput.value = formatarNumero(obterDisponibilidadeFase(), 2);
+  }
+
+  const tarifaEnergia = normalizeNumeroJs(document.getElementById("propTarifaEnergia").value);
+  const fioBTarifa = normalizeNumeroJs(document.getElementById("propFioBTarifa").value);
+  const fioBPercentualInput = document.getElementById("propFioBPercentual");
+
+  if (tarifaEnergia && fioBTarifa && !fioBPercentualInput.value.trim()) {
+    fioBPercentualInput.value = formatarNumero((fioBTarifa / tarifaEnergia) * 100, 2);
+  }
+
+  atualizarPreviewProposta();
 }
 
 document.addEventListener("DOMContentLoaded", () => {

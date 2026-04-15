@@ -522,12 +522,200 @@ button.perigo {
 }
 
 .modal-card input,
-.modal-card select {
+.modal-card select,
+.modal-card textarea {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: 10px;
   margin-top: 6px;
+}
+
+.proposta-layout {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 20px;
+}
+
+.proposta-coluna {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.proposta-secao {
+  border: 1px solid rgba(201, 111, 26, 0.14);
+  border-radius: 20px;
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.proposta-secao h4 {
+  margin: 0 0 14px;
+  font-size: 16px;
+}
+
+.proposta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.proposta-grid .full {
+  grid-column: 1 / -1;
+}
+
+.modos-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.modo-card {
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(201, 111, 26, 0.16);
+  background: #fff8ef;
+  color: var(--text);
+  text-align: left;
+}
+
+.modo-card.ativo {
+  background: linear-gradient(135deg, rgba(201, 111, 26, 0.16), rgba(140, 75, 16, 0.08));
+  border-color: rgba(140, 75, 16, 0.42);
+}
+
+.modo-card strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.modo-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.resumo-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.resumo-card {
+  background: #fffdfa;
+  border: 1px solid rgba(201, 111, 26, 0.12);
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.resumo-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.resumo-card strong {
+  font-size: 20px;
+}
+
+.lista-propostas {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.proposta-item {
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(201, 111, 26, 0.14);
+  background: #fffdf9;
+}
+
+.proposta-item strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.proposta-item small {
+  display: block;
+  color: var(--muted);
+}
+
+.proposta-preview {
+  min-height: 100%;
+  border-radius: 24px;
+  overflow: hidden;
+  background: linear-gradient(180deg, #ffffff 0%, #fff7ef 100%);
+  border: 1px solid rgba(201, 111, 26, 0.14);
+  box-shadow: 0 18px 42px rgba(66, 41, 13, 0.08);
+}
+
+.proposta-preview-header {
+  padding: 24px;
+  color: white;
+  background: linear-gradient(135deg, rgba(201, 111, 26, 0.96), rgba(140, 75, 16, 0.98));
+}
+
+.proposta-preview-header h3 {
+  margin: 0;
+  font-size: 26px;
+}
+
+.proposta-preview-header p {
+  margin: 8px 0 0;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.proposta-preview-body {
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.preview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.preview-box {
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.84);
+  border: 1px solid rgba(201, 111, 26, 0.1);
+}
+
+.preview-box span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.preview-box strong {
+  font-size: 18px;
+}
+
+.preview-lista {
+  margin: 0;
+  padding-left: 18px;
+  color: #475467;
+  line-height: 1.55;
+}
+
+.preview-aviso {
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(201, 111, 26, 0.08);
+  color: #5b3a16;
+  font-size: 14px;
+  line-height: 1.55;
 }
 
 .usuario-item {
@@ -564,6 +752,7 @@ button.perigo {
     grid-template-columns: repeat(2, minmax(220px, 1fr));
   }
 
+  .proposta-layout,
   .detalhe-layout {
     grid-template-columns: 1fr;
   }
@@ -593,6 +782,13 @@ button.perigo {
   }
 
   .kanban {
+    grid-template-columns: 1fr;
+  }
+
+  .proposta-grid,
+  .modos-grid,
+  .preview-grid,
+  .resumo-cards {
     grid-template-columns: 1fr;
   }
 
@@ -653,6 +849,7 @@ button.perigo {
     <div class="topo-acoes">
       <div id="usuarioAtual" class="usuario-badge"></div>
       <button class="secundario" onclick="abrirModalNotificacoes()">Notificacoes <span id="notificacoesBadge" class="notificacao-badge">0</span></button>
+      <button class="secundario" onclick="abrirCentralPropostas()">Propostas</button>
       <button id="botaoUsuarios" class="secundario" onclick="abrirModalUsuarios()" style="display:none;">Usuarios</button>
       <button class="secundario" onclick="abrirModalSenha()">Alterar senha</button>
       <button id="botaoNovoProjeto" onclick="novoProjeto()">+ Novo Projeto</button>
@@ -739,7 +936,10 @@ button.perigo {
         <h2 id="detalheTitulo">Projeto</h2>
         <div id="detalheStatus" class="detalhe-topo-meta"></div>
       </div>
-      <button class="secundario" onclick="fecharDetalhes()">Pagina inicial</button>
+      <div class="topo-acoes">
+        <button class="secundario" onclick="abrirCentralPropostas(projetoDetalheAtual)">Proposta</button>
+        <button class="secundario" onclick="fecharDetalhes()">Pagina inicial</button>
+      </div>
     </div>
 
     <div class="detalhe-corpo">
@@ -1015,7 +1215,174 @@ button.perigo {
   </div>
 </div>
 
-<script src="script.js?v=20260413-notificacoes"></script>
+<div id="propostasOverlay" class="overlay-modal">
+  <div class="modal-card" style="width:min(1280px, calc(100vw - 32px));">
+    <h3>Central de propostas</h3>
+    <p>Monte o dimensionamento, confirme a concessionaria e gere uma proposta pronta para apresentar ao cliente.</p>
+    <div class="proposta-layout">
+      <div class="proposta-coluna">
+        <div class="proposta-secao">
+          <div class="acoes-modal" style="margin-top:0;">
+            <button id="botaoNovaPropostaCentral" onclick="novaProposta()">Nova proposta</button>
+            <button id="botaoSalvarPropostaCentral" class="secundario" onclick="salvarProposta()">Salvar proposta</button>
+            <button class="secundario" onclick="gerarPdfProposta()">Gerar PDF</button>
+            <button class="secundario" onclick="fecharCentralPropostas()">Fechar</button>
+          </div>
+        </div>
+
+        <div class="proposta-secao">
+          <h4>Propostas salvas</h4>
+          <div id="listaPropostas" class="lista-propostas"></div>
+        </div>
+
+        <div class="proposta-secao">
+          <h4>Cliente e local</h4>
+          <div class="proposta-grid">
+            <div class="full">
+              <label for="propProjeto">Projeto vinculado</label>
+              <select id="propProjeto" onchange="sincronizarProjetoNaProposta()"></select>
+            </div>
+            <div class="full">
+              <label for="propClienteNome">Nome do cliente</label>
+              <input id="propClienteNome" placeholder="Nome completo do cliente" oninput="atualizarPreviewProposta()">
+            </div>
+            <div>
+              <label for="propCep">CEP</label>
+              <input id="propCep" placeholder="00000-000" oninput="atualizarPreviewProposta()">
+            </div>
+            <div style="display:flex;align-items:end;">
+              <button type="button" class="secundario" onclick="buscarCepProposta()">Buscar CEP</button>
+            </div>
+            <div>
+              <label for="propCidade">Cidade</label>
+              <input id="propCidade" placeholder="Cidade" oninput="atualizarPreviewProposta()">
+            </div>
+            <div>
+              <label for="propEstado">Estado</label>
+              <input id="propEstado" placeholder="Estado ou UF" oninput="aplicarParametrosRegiao()">
+            </div>
+            <div class="full">
+              <label for="propConcessionaria">Concessionaria</label>
+              <input id="propConcessionaria" placeholder="Concessionaria da regiao" oninput="aplicarParametrosConcessionaria()">
+            </div>
+          </div>
+        </div>
+
+        <div class="proposta-secao">
+          <h4>Modo de dimensionamento</h4>
+          <div class="modos-grid">
+            <button type="button" id="modoConsumoMedio" class="modo-card ativo" onclick="selecionarModoProposta('consumo_medio')">
+              <strong>Media de consumo kWh</strong>
+              <span>Dimensiona pela media mensal de energia consumida.</span>
+            </button>
+            <button type="button" id="modoValorMedio" class="modo-card" onclick="selecionarModoProposta('valor_medio')">
+              <strong>Valor medio R$</strong>
+              <span>Converte a conta media em kWh para chegar ao sistema ideal.</span>
+            </button>
+            <button type="button" id="modoPotenciaSistema" class="modo-card" onclick="selecionarModoProposta('potencia_sistema')">
+              <strong>Potencia do sistema</strong>
+              <span>Parte de uma potencia desejada e estima a geracao mensal.</span>
+            </button>
+            <button type="button" id="modoConsumoReal" class="modo-card" onclick="selecionarModoProposta('consumo_real')">
+              <strong>Consumo real</strong>
+              <span>Usa o consumo real desejado para o calculo de geracao.</span>
+            </button>
+          </div>
+          <input id="propModo" type="hidden" value="consumo_medio">
+          <div style="margin-top:14px;">
+            <label id="propValorReferenciaLabel" for="propValorReferencia">Media desejada (kWh)</label>
+            <input id="propValorReferencia" placeholder="Informe o valor desejado" oninput="recalcularProposta()">
+          </div>
+        </div>
+
+        <div class="proposta-secao">
+          <h4>Premissas tecnicas</h4>
+          <div class="proposta-grid">
+            <div>
+              <label for="propTipoEstrutura">Tipo de estrutura</label>
+              <select id="propTipoEstrutura" onchange="atualizarPreviewProposta()">
+                <option value="">Selecione</option>
+                <option>Telhado ceramico</option>
+                <option>Telhado metalico</option>
+                <option>Fibrocimento</option>
+                <option>Laje</option>
+                <option>Solo</option>
+              </select>
+            </div>
+            <div>
+              <label for="propFase">Fase</label>
+              <select id="propFase" onchange="recalcularProposta()">
+                <option value="Monofasico">Monofasico</option>
+                <option value="Bifasico">Bifasico</option>
+                <option value="Trifasico">Trifasico</option>
+              </select>
+            </div>
+            <div>
+              <label for="propTensao">Tensao</label>
+              <select id="propTensao" onchange="atualizarPreviewProposta()">
+                <option value="127V">127V</option>
+                <option value="220V" selected>220V</option>
+                <option value="380V">380V</option>
+              </select>
+            </div>
+            <div>
+              <label for="propTarifaEnergia">Tarifa de energia (R$/kWh)</label>
+              <input id="propTarifaEnergia" oninput="recalcularProposta()">
+            </div>
+            <div>
+              <label for="propFioBTarifa">Tarifa fio B (R$/kWh)</label>
+              <input id="propFioBTarifa" oninput="recalcularProposta()">
+            </div>
+            <div>
+              <label for="propFioBPercentual">Fio B (%)</label>
+              <input id="propFioBPercentual" oninput="recalcularProposta()">
+            </div>
+            <div>
+              <label for="propProdutividade">Produtividade regional (kWh/kWp mes)</label>
+              <input id="propProdutividade" oninput="recalcularProposta()">
+            </div>
+            <div>
+              <label for="propDisponibilidade">Disponibilidade minima (kWh)</label>
+              <input id="propDisponibilidade" oninput="recalcularProposta()">
+            </div>
+            <div class="full">
+              <label for="propObservacoes">Observacoes</label>
+              <textarea id="propObservacoes" rows="4" placeholder="Observacoes comerciais, premissas do calculo e anotacoes." oninput="atualizarPreviewProposta()"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="proposta-secao">
+          <h4>Resumo do calculo</h4>
+          <div class="resumo-cards">
+            <div class="resumo-card">
+              <span>Consumo de referencia</span>
+              <strong id="resumoConsumoReferencia">0 kWh</strong>
+            </div>
+            <div class="resumo-card">
+              <span>Potencia dimensionada</span>
+              <strong id="resumoPotenciaDimensionada">0 kWp</strong>
+            </div>
+            <div class="resumo-card">
+              <span>Geracao estimada</span>
+              <strong id="resumoGeracaoEstimada">0 kWh</strong>
+            </div>
+            <div class="resumo-card">
+              <span>Economia estimada</span>
+              <strong id="resumoEconomiaEstimada">R$ 0,00</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="proposta-coluna">
+        <div id="propostaPreview" class="proposta-preview"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="script.js?v=20260414-propostas"></script>
 
 </body>
 </html>

@@ -23,6 +23,7 @@ const ROLE_PERMISSIONS = {
   admin: {
     viewAllProjects: true,
     createProject: true,
+    createProposal: true,
     changeStatus: true,
     deleteProject: true,
     manageUsers: true,
@@ -30,6 +31,7 @@ const ROLE_PERMISSIONS = {
   operador: {
     viewAllProjects: false,
     createProject: true,
+    createProposal: true,
     changeStatus: true,
     deleteProject: true,
     manageUsers: false,
@@ -37,6 +39,7 @@ const ROLE_PERMISSIONS = {
   client: {
     viewAllProjects: false,
     createProject: false,
+    createProposal: false,
     changeStatus: false,
     deleteProject: false,
     manageUsers: false,
@@ -203,6 +206,43 @@ function mapProjeto(row) {
   };
 }
 
+function mapProposta(row) {
+  return {
+    id: row.id,
+    projeto_id: row.projeto_id,
+    projeto_nome: row.projeto_nome || null,
+    created_by: row.created_by,
+    owner_user_id: row.owner_user_id,
+    owner_name: row.owner_name || null,
+    owner_email: row.owner_email || null,
+    cliente_nome: row.cliente_nome,
+    cep: row.cep,
+    cidade: row.cidade,
+    estado: row.estado,
+    concessionaria: row.concessionaria,
+    tipo_estrutura: row.tipo_estrutura,
+    fase: row.fase,
+    tensao: row.tensao,
+    modo_dimensionamento: row.modo_dimensionamento,
+    valor_referencia: row.valor_referencia,
+    consumo_medio_kwh: row.consumo_medio_kwh,
+    valor_medio_reais: row.valor_medio_reais,
+    potencia_sistema_kwp: row.potencia_sistema_kwp,
+    consumo_real_kwh: row.consumo_real_kwh,
+    tarifa_energia: row.tarifa_energia,
+    fio_b_percentual: row.fio_b_percentual,
+    fio_b_tarifa: row.fio_b_tarifa,
+    disponibilidade_kwh: row.disponibilidade_kwh,
+    produtividade_regional: row.produtividade_regional,
+    geracao_estimada_kwh: row.geracao_estimada_kwh,
+    potencia_dimensionada_kwp: row.potencia_dimensionada_kwp,
+    economia_estimada_reais: row.economia_estimada_reais,
+    observacoes: row.observacoes,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
 function buildProjetoValues(body, ownerName) {
   return [
     body.cliente_nome,
@@ -219,6 +259,37 @@ function buildProjetoValues(body, ownerName) {
     normalizeNumber(body.valor),
     body.vendedor || ownerName || null,
     body.origem || null,
+  ];
+}
+
+function buildPropostaValues(body) {
+  return [
+    body.projeto_id || null,
+    body.created_by || null,
+    body.owner_user_id || null,
+    body.cliente_nome,
+    body.cep || null,
+    body.cidade || null,
+    body.estado || null,
+    body.concessionaria || null,
+    body.tipo_estrutura || null,
+    body.fase || null,
+    body.tensao || null,
+    body.modo_dimensionamento || "consumo_medio",
+    normalizeNumber(body.valor_referencia),
+    normalizeNumber(body.consumo_medio_kwh),
+    normalizeNumber(body.valor_medio_reais),
+    normalizeNumber(body.potencia_sistema_kwp),
+    normalizeNumber(body.consumo_real_kwh),
+    normalizeNumber(body.tarifa_energia),
+    normalizeNumber(body.fio_b_percentual),
+    normalizeNumber(body.fio_b_tarifa),
+    normalizeNumber(body.disponibilidade_kwh),
+    normalizeNumber(body.produtividade_regional),
+    normalizeNumber(body.geracao_estimada_kwh),
+    normalizeNumber(body.potencia_dimensionada_kwp),
+    normalizeNumber(body.economia_estimada_reais),
+    body.observacoes || null,
   ];
 }
 
@@ -395,6 +466,79 @@ async function getProjetoAcessivel(projectId, user) {
   return { projeto };
 }
 
+async function getProposalOwnerId(projetoId, currentUser) {
+  if (!projetoId) {
+    return currentUser.id;
+  }
+
+  const acessoProjeto = await getProjetoAcessivel(projetoId, currentUser);
+
+  if (acessoProjeto.error) {
+    return null;
+  }
+
+  return Number(acessoProjeto.projeto.created_by) || currentUser.id;
+}
+
+async function getPropostaAcessivel(propostaId, user) {
+  const result = await pool.query(
+    `SELECT
+       pr.id,
+       pr.projeto_id,
+       pr.created_by,
+       pr.owner_user_id,
+       pr.cliente_nome,
+       pr.cep,
+       pr.cidade,
+       pr.estado,
+       pr.concessionaria,
+       pr.tipo_estrutura,
+       pr.fase,
+       pr.tensao,
+       pr.modo_dimensionamento,
+       pr.valor_referencia,
+       pr.consumo_medio_kwh,
+       pr.valor_medio_reais,
+       pr.potencia_sistema_kwp,
+       pr.consumo_real_kwh,
+       pr.tarifa_energia,
+       pr.fio_b_percentual,
+       pr.fio_b_tarifa,
+       pr.disponibilidade_kwh,
+       pr.produtividade_regional,
+       pr.geracao_estimada_kwh,
+       pr.potencia_dimensionada_kwp,
+       pr.economia_estimada_reais,
+       pr.observacoes,
+       pr.created_at,
+       pr.updated_at,
+       p.cliente_nome AS projeto_nome,
+       owner.nome AS owner_name,
+       owner.email AS owner_email
+     FROM propostas pr
+     LEFT JOIN projetos p ON p.id = pr.projeto_id
+     LEFT JOIN users owner ON owner.id = pr.owner_user_id
+     WHERE pr.id = $1`,
+    [propostaId]
+  );
+
+  const proposta = result.rows[0];
+
+  if (!proposta) {
+    return { status: 404, error: "Proposta nao encontrada." };
+  }
+
+  if (
+    !hasPermission(user, "viewAllProjects") &&
+    Number(proposta.owner_user_id) !== Number(user.id) &&
+    Number(proposta.created_by) !== Number(user.id)
+  ) {
+    return { status: 403, error: "Voce nao tem acesso a esta proposta." };
+  }
+
+  return { proposta };
+}
+
 async function getActiveAdminCount(excludeUserId = null) {
   const params = [];
   let whereClause = "WHERE role = 'admin' AND ativo = TRUE";
@@ -543,6 +687,323 @@ app.put("/notificacoes/:id/lida", authRequired, async (req, res) => {
   } catch (err) {
     console.error("Erro ao marcar notificacao como lida:", err);
     return res.status(500).json({ error: "Erro ao marcar notificacao como lida." });
+  }
+});
+
+app.get("/propostas", authRequired, async (req, res) => {
+  try {
+    const canViewAll = hasPermission(req.user, "viewAllProjects");
+    const params = [];
+    const conditions = [];
+
+    if (req.query.projeto_id) {
+      params.push(Number(req.query.projeto_id));
+      conditions.push(`pr.projeto_id = $${params.length}`);
+    }
+
+    if (!canViewAll) {
+      params.push(Number(req.user.id));
+      conditions.push(`(pr.owner_user_id = $${params.length} OR pr.created_by = $${params.length})`);
+    }
+
+    const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+
+    const result = await pool.query(
+      `SELECT
+         pr.id,
+         pr.projeto_id,
+         pr.created_by,
+         pr.owner_user_id,
+         pr.cliente_nome,
+         pr.cep,
+         pr.cidade,
+         pr.estado,
+         pr.concessionaria,
+         pr.tipo_estrutura,
+         pr.fase,
+         pr.tensao,
+         pr.modo_dimensionamento,
+         pr.valor_referencia,
+         pr.consumo_medio_kwh,
+         pr.valor_medio_reais,
+         pr.potencia_sistema_kwp,
+         pr.consumo_real_kwh,
+         pr.tarifa_energia,
+         pr.fio_b_percentual,
+         pr.fio_b_tarifa,
+         pr.disponibilidade_kwh,
+         pr.produtividade_regional,
+         pr.geracao_estimada_kwh,
+         pr.potencia_dimensionada_kwp,
+         pr.economia_estimada_reais,
+         pr.observacoes,
+         pr.created_at,
+         pr.updated_at,
+         p.cliente_nome AS projeto_nome,
+         owner.nome AS owner_name,
+         owner.email AS owner_email
+       FROM propostas pr
+       LEFT JOIN projetos p ON p.id = pr.projeto_id
+       LEFT JOIN users owner ON owner.id = pr.owner_user_id
+       ${whereClause}
+       ORDER BY pr.created_at DESC`,
+      params
+    );
+
+    return res.json({ propostas: result.rows.map(mapProposta) });
+  } catch (err) {
+    console.error("Erro ao listar propostas:", err);
+    return res.status(500).json({ error: "Erro ao listar propostas." });
+  }
+});
+
+app.get("/propostas/:id", authRequired, async (req, res) => {
+  try {
+    const acesso = await getPropostaAcessivel(req.params.id, req.user);
+
+    if (acesso.error) {
+      return res.status(acesso.status).json({ error: acesso.error });
+    }
+
+    return res.json({ proposta: mapProposta(acesso.proposta) });
+  } catch (err) {
+    console.error("Erro ao buscar proposta:", err);
+    return res.status(500).json({ error: "Erro ao buscar proposta." });
+  }
+});
+
+app.post("/propostas", authRequired, async (req, res) => {
+  try {
+    const permissionError = ensurePermission(req.user, "createProposal");
+
+    if (permissionError) {
+      return res.status(permissionError.status).json({ error: permissionError.error });
+    }
+
+    if (!req.body?.cliente_nome) {
+      return res.status(400).json({ error: "O nome do cliente e obrigatorio." });
+    }
+
+    const ownerUserId = await getProposalOwnerId(req.body.projeto_id, req.user);
+
+    if (!ownerUserId) {
+      return res.status(400).json({ error: "Projeto vinculado invalido." });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO propostas
+       (
+         projeto_id,
+         created_by,
+         owner_user_id,
+         cliente_nome,
+         cep,
+         cidade,
+         estado,
+         concessionaria,
+         tipo_estrutura,
+         fase,
+         tensao,
+         modo_dimensionamento,
+         valor_referencia,
+         consumo_medio_kwh,
+         valor_medio_reais,
+         potencia_sistema_kwp,
+         consumo_real_kwh,
+         tarifa_energia,
+         fio_b_percentual,
+         fio_b_tarifa,
+         disponibilidade_kwh,
+         produtividade_regional,
+         geracao_estimada_kwh,
+         potencia_dimensionada_kwp,
+         economia_estimada_reais,
+         observacoes
+       )
+       VALUES
+       ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
+       RETURNING
+         id,
+         projeto_id,
+         created_by,
+         owner_user_id,
+         cliente_nome,
+         cep,
+         cidade,
+         estado,
+         concessionaria,
+         tipo_estrutura,
+         fase,
+         tensao,
+         modo_dimensionamento,
+         valor_referencia,
+         consumo_medio_kwh,
+         valor_medio_reais,
+         potencia_sistema_kwp,
+         consumo_real_kwh,
+         tarifa_energia,
+         fio_b_percentual,
+         fio_b_tarifa,
+         disponibilidade_kwh,
+         produtividade_regional,
+         geracao_estimada_kwh,
+         potencia_dimensionada_kwp,
+         economia_estimada_reais,
+         observacoes,
+         created_at,
+         updated_at`,
+      buildPropostaValues({
+        ...req.body,
+        created_by: req.user.id,
+        owner_user_id: ownerUserId,
+      })
+    );
+
+    const owner = await getUserById(ownerUserId);
+
+    return res.status(201).json({
+      message: "Proposta salva com sucesso.",
+      proposta: mapProposta({
+        ...result.rows[0],
+        projeto_nome: null,
+        owner_name: owner?.nome || null,
+        owner_email: owner?.email || null,
+      }),
+    });
+  } catch (err) {
+    console.error("Erro ao salvar proposta:", err);
+    return res.status(500).json({ error: "Erro ao salvar proposta." });
+  }
+});
+
+app.put("/propostas/:id", authRequired, async (req, res) => {
+  try {
+    const acesso = await getPropostaAcessivel(req.params.id, req.user);
+
+    if (acesso.error) {
+      return res.status(acesso.status).json({ error: acesso.error });
+    }
+
+    const canEdit = hasPermission(req.user, "createProposal") || Number(acesso.proposta.owner_user_id) === Number(req.user.id);
+
+    if (!canEdit) {
+      return res.status(403).json({ error: "Voce nao tem permissao para editar esta proposta." });
+    }
+
+    if (!req.body?.cliente_nome) {
+      return res.status(400).json({ error: "O nome do cliente e obrigatorio." });
+    }
+
+    const ownerUserId = await getProposalOwnerId(req.body.projeto_id, req.user);
+
+    if (!ownerUserId) {
+      return res.status(400).json({ error: "Projeto vinculado invalido." });
+    }
+
+    const result = await pool.query(
+      `UPDATE propostas
+       SET
+         projeto_id = $1,
+         owner_user_id = $2,
+         cliente_nome = $3,
+         cep = $4,
+         cidade = $5,
+         estado = $6,
+         concessionaria = $7,
+         tipo_estrutura = $8,
+         fase = $9,
+         tensao = $10,
+         modo_dimensionamento = $11,
+         valor_referencia = $12,
+         consumo_medio_kwh = $13,
+         valor_medio_reais = $14,
+         potencia_sistema_kwp = $15,
+         consumo_real_kwh = $16,
+         tarifa_energia = $17,
+         fio_b_percentual = $18,
+         fio_b_tarifa = $19,
+         disponibilidade_kwh = $20,
+         produtividade_regional = $21,
+         geracao_estimada_kwh = $22,
+         potencia_dimensionada_kwp = $23,
+         economia_estimada_reais = $24,
+         observacoes = $25,
+         updated_at = NOW()
+       WHERE id = $26
+       RETURNING
+         id,
+         projeto_id,
+         created_by,
+         owner_user_id,
+         cliente_nome,
+         cep,
+         cidade,
+         estado,
+         concessionaria,
+         tipo_estrutura,
+         fase,
+         tensao,
+         modo_dimensionamento,
+         valor_referencia,
+         consumo_medio_kwh,
+         valor_medio_reais,
+         potencia_sistema_kwp,
+         consumo_real_kwh,
+         tarifa_energia,
+         fio_b_percentual,
+         fio_b_tarifa,
+         disponibilidade_kwh,
+         produtividade_regional,
+         geracao_estimada_kwh,
+         potencia_dimensionada_kwp,
+         economia_estimada_reais,
+         observacoes,
+         created_at,
+         updated_at`,
+      [
+        req.body.projeto_id || null,
+        ownerUserId,
+        req.body.cliente_nome,
+        req.body.cep || null,
+        req.body.cidade || null,
+        req.body.estado || null,
+        req.body.concessionaria || null,
+        req.body.tipo_estrutura || null,
+        req.body.fase || null,
+        req.body.tensao || null,
+        req.body.modo_dimensionamento || "consumo_medio",
+        normalizeNumber(req.body.valor_referencia),
+        normalizeNumber(req.body.consumo_medio_kwh),
+        normalizeNumber(req.body.valor_medio_reais),
+        normalizeNumber(req.body.potencia_sistema_kwp),
+        normalizeNumber(req.body.consumo_real_kwh),
+        normalizeNumber(req.body.tarifa_energia),
+        normalizeNumber(req.body.fio_b_percentual),
+        normalizeNumber(req.body.fio_b_tarifa),
+        normalizeNumber(req.body.disponibilidade_kwh),
+        normalizeNumber(req.body.produtividade_regional),
+        normalizeNumber(req.body.geracao_estimada_kwh),
+        normalizeNumber(req.body.potencia_dimensionada_kwp),
+        normalizeNumber(req.body.economia_estimada_reais),
+        req.body.observacoes || null,
+        req.params.id,
+      ]
+    );
+
+    const owner = await getUserById(ownerUserId);
+
+    return res.json({
+      message: "Proposta atualizada com sucesso.",
+      proposta: mapProposta({
+        ...result.rows[0],
+        projeto_nome: null,
+        owner_name: owner?.nome || null,
+        owner_email: owner?.email || null,
+      }),
+    });
+  } catch (err) {
+    console.error("Erro ao atualizar proposta:", err);
+    return res.status(500).json({ error: "Erro ao atualizar proposta." });
   }
 });
 

@@ -734,6 +734,7 @@ async function notifyProjectOwnerStatusChange(projetoId, ownerId, statusAnterior
 
 async function getInternalNotificationRecipients() {
   const targetEmail = normalizeEmail(STATUS_CHANGE_EMAIL);
+  const recipients = new Set();
 
   if (targetEmail) {
     const targetResult = await pool.query(
@@ -744,7 +745,7 @@ async function getInternalNotificationRecipients() {
     );
 
     if (targetResult.rows.length) {
-      return targetResult.rows.map((row) => row.id);
+      targetResult.rows.forEach((row) => recipients.add(Number(row.id)));
     }
   }
 
@@ -754,7 +755,9 @@ async function getInternalNotificationRecipients() {
      WHERE role = 'admin' AND ativo = TRUE`
   );
 
-  return adminResult.rows.map((row) => row.id);
+  adminResult.rows.forEach((row) => recipients.add(Number(row.id)));
+
+  return Array.from(recipients);
 }
 
 async function notifyInternalStatusChange(projetoId, statusAnterior, statusNovo) {

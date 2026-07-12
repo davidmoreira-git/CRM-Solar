@@ -1240,6 +1240,12 @@ app.put("/notificacoes/:id/lida", authRequired, async (req, res) => {
 
 app.get("/leads", authRequired, async (req, res) => {
   try {
+    const permissionError = ensurePermission(req.user, "manageUsers");
+
+    if (permissionError) {
+      return res.status(permissionError.status).json({ error: permissionError.error });
+    }
+
     const result = await pool.query(
       `SELECT id, nome, telefone, email, cidade, servico, conta_reais, consumo_kwh, mensagem, status, origem, projeto_id, created_at, updated_at
        FROM leads
@@ -1255,6 +1261,12 @@ app.get("/leads", authRequired, async (req, res) => {
 
 app.put("/leads/:id/status", authRequired, async (req, res) => {
   try {
+    const permissionError = ensurePermission(req.user, "manageUsers");
+
+    if (permissionError) {
+      return res.status(permissionError.status).json({ error: permissionError.error });
+    }
+
     const status = String(req.body?.status || "").trim();
 
     if (!LEAD_STATUS_VALIDOS.includes(status)) {
@@ -1287,6 +1299,12 @@ app.post("/leads/:id/converter", authRequired, async (req, res) => {
   const client = await pool.connect();
 
   try {
+    const adminPermissionError = ensurePermission(req.user, "manageUsers");
+
+    if (adminPermissionError) {
+      return res.status(adminPermissionError.status).json({ error: adminPermissionError.error });
+    }
+
     const permissionError = ensurePermission(req.user, "createProject");
 
     if (permissionError) {

@@ -77,6 +77,7 @@ function atualizarUsuarioAtual() {
 function atualizarPermissoesUI() {
   const botaoNovoProjeto = document.getElementById("botaoNovoProjeto");
   const botaoUsuarios = document.getElementById("botaoUsuarios");
+  const tabLeads = document.getElementById("tabLeads");
   const painelAvisoSenha = document.getElementById("avisoTrocaSenha");
   const botaoExcluir = document.getElementById("botaoExcluirProjeto");
 
@@ -86,6 +87,10 @@ function atualizarPermissoesUI() {
 
   if (botaoUsuarios) {
     botaoUsuarios.style.display = canManageUsers() ? "inline-flex" : "none";
+  }
+
+  if (tabLeads) {
+    tabLeads.style.display = isAdmin() ? "inline-flex" : "none";
   }
 
   if (painelAvisoSenha) {
@@ -209,7 +214,9 @@ async function bootstrapSessao() {
     mostrarCRM();
     await carregarNotificacoes();
     await carregar();
-    await carregarLeads();
+    if (isAdmin()) {
+      await carregarLeads();
+    }
 
     if (currentUser.must_change_password) {
       abrirModalSenha(true);
@@ -244,7 +251,9 @@ async function login() {
     mostrarCRM();
     await carregarNotificacoes();
     await carregar();
-    await carregarLeads();
+    if (isAdmin()) {
+      await carregarLeads();
+    }
 
     if (currentUser.must_change_password) {
       abrirModalSenha(true);
@@ -623,6 +632,10 @@ function aplicarFiltros() {
 }
 
 function mostrarVisao(visao) {
+  if (visao === "leads" && !isAdmin()) {
+    visao = "projetos";
+  }
+
   const mostrandoLeads = visao === "leads";
 
   document.getElementById("painelProjetos").style.display = mostrandoLeads ? "none" : "block";
@@ -638,6 +651,12 @@ function mostrarVisao(visao) {
 }
 
 async function carregarLeads() {
+  if (!isAdmin()) {
+    leadsCache = [];
+    renderLeads([]);
+    return;
+  }
+
   try {
     const response = await apiFetch("/leads");
     const data = await response.json();

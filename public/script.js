@@ -322,6 +322,14 @@ function formatarData(data) {
   return data ? new Date(data).toLocaleString("pt-BR") : "-";
 }
 
+function mensagemAutomacao(automacao) {
+  if (!automacao) {
+    return "";
+  }
+
+  return `\n\nAutomacao: projeto movido de ${automacao.status_anterior} para ${automacao.status_novo}.`;
+}
+
 function normalizarStatus(status) {
   return status === "Criando" ? "Tramitacao" : status;
 }
@@ -410,22 +418,21 @@ function renderNotificacoes() {
       (item) => `
         <div class="usuario-item">
           <strong>${item.titulo}</strong>
-          <div class="usuario-meta">${item.mensagem}</div>
+          <div class="usuario-meta notificacao-mensagem">${item.mensagem}</div>
           <div class="usuario-meta">${formatarData(item.created_at)}</div>
-          ${
-            item.lida
-              ? '<div class="usuario-meta">Lida</div>'
-              : `<div class="acoes-modal"><button type="button" class="secundario" onclick="marcarNotificacaoLida(${item.id})">Marcar como lida</button></div>`
-          }
         </div>
       `
     )
     .join("");
 }
 
-function abrirModalNotificacoes() {
+async function abrirModalNotificacoes() {
   document.getElementById("notificacoesOverlay").style.display = "block";
-  carregarNotificacoes();
+  await carregarNotificacoes();
+
+  if (notificacoesCache.length) {
+    await marcarNotificacoesLidas();
+  }
 }
 
 function fecharModalNotificacoes() {
@@ -449,6 +456,24 @@ async function marcarNotificacaoLida(id) {
   } catch (err) {
     console.error(err);
     alert(err.message || "Erro ao marcar notificacao.");
+  }
+}
+
+async function marcarNotificacoesLidas() {
+  try {
+    const response = await apiFetch("/notificacoes/lidas", {
+      method: "PUT",
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Erro ao marcar notificacoes.");
+    }
+
+    notificacoesCache = [];
+    atualizarBadgeNotificacoes();
+  } catch (err) {
+    console.error(err);
   }
 }
 
@@ -604,6 +629,7 @@ async function drop(event, status) {
     }
 
     await carregar();
+    await carregarNotificacoes();
 
     if (projetoDetalheAtual && String(projetoDetalheAtual) === String(id)) {
       await abrirDetalhes(id);
@@ -924,8 +950,9 @@ async function salvarEdicaoProjeto() {
     }
 
     await carregar();
+    await carregarNotificacoes();
     await abrirDetalhes(projetoDetalheAtual);
-    alert("Projeto atualizado com sucesso.");
+    alert(`Projeto atualizado com sucesso.${mensagemAutomacao(data.automacao)}`);
   } catch (err) {
     console.error(err);
     alert(err.message || "Erro ao salvar alteracoes.");
@@ -1045,7 +1072,9 @@ async function salvarDocumentacao() {
     }
 
     await abrirDetalhes(projetoDetalheAtual);
-    alert("Documentacao atualizada com sucesso.");
+    await carregar();
+    await carregarNotificacoes();
+    alert(`Documentacao atualizada com sucesso.${mensagemAutomacao(data.automacao)}`);
   } catch (err) {
     console.error(err);
     alert(err.message || "Erro ao salvar documentacao.");

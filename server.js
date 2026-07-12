@@ -763,9 +763,10 @@ async function notifyInternalStatusChange(projetoId, statusAnterior, statusNovo)
   }
 
   const projetoResult = await pool.query(
-    `SELECT
+     `SELECT
        p.id,
        p.cliente_nome,
+       p.created_by,
        owner.nome AS operador_nome,
        owner.email AS operador_email
      FROM projetos p
@@ -1085,7 +1086,7 @@ app.get("/notificacoes", authRequired, async (req, res) => {
     const result = await pool.query(
       `SELECT id, user_id, projeto_id, titulo, mensagem, lida, created_at
        FROM notificacoes
-       WHERE user_id = $1
+       WHERE user_id = $1 AND lida = FALSE
        ORDER BY created_at DESC
        LIMIT 50`,
       [req.user.id]
@@ -1095,6 +1096,26 @@ app.get("/notificacoes", authRequired, async (req, res) => {
   } catch (err) {
     console.error("Erro ao listar notificacoes:", err);
     return res.status(500).json({ error: "Erro ao listar notificacoes." });
+  }
+});
+
+app.put("/notificacoes/lidas", authRequired, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `UPDATE notificacoes
+       SET lida = TRUE
+       WHERE user_id = $1 AND lida = FALSE
+       RETURNING id`,
+      [req.user.id]
+    );
+
+    return res.json({
+      message: "Notificacoes marcadas como lidas.",
+      total: result.rows.length,
+    });
+  } catch (err) {
+    console.error("Erro ao marcar notificacoes como lidas:", err);
+    return res.status(500).json({ error: "Erro ao marcar notificacoes como lidas." });
   }
 });
 

@@ -163,6 +163,17 @@ body {
   box-shadow: var(--shadow);
 }
 
+.visao-tabs {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+
+.visao-tabs button.ativo {
+  background: var(--brand-dark);
+}
+
 .login-tabs {
   display: flex;
   gap: 10px;
@@ -239,6 +250,10 @@ button.perigo {
   align-items: start;
 }
 
+.kanban.leads {
+  grid-template-columns: repeat(5, minmax(220px, 1fr));
+}
+
 .coluna {
   min-height: 220px;
   border-radius: 22px;
@@ -269,6 +284,26 @@ button.perigo {
 
 #Finalizado {
   background: linear-gradient(180deg, #f5f1ff 0%, #ddd3ff 100%);
+}
+
+#LeadNovo {
+  background: linear-gradient(180deg, #eef7ff 0%, #d5ebff 100%);
+}
+
+#LeadContato {
+  background: linear-gradient(180deg, #fff9ea 0%, #f7e5ae 100%);
+}
+
+#LeadQualificado {
+  background: linear-gradient(180deg, #edfcef 0%, #c8efd0 100%);
+}
+
+#LeadConvertido {
+  background: linear-gradient(180deg, #f3efff 0%, #ddd4ff 100%);
+}
+
+#LeadPerdido {
+  background: linear-gradient(180deg, #fff0f0 0%, #f2caca 100%);
 }
 
 .card {
@@ -688,6 +723,12 @@ button.perigo {
     Seu usuario esta com senha temporaria. Abra "Alterar senha" e defina uma senha nova.
   </div>
 
+  <div class="visao-tabs">
+    <button id="tabProjetos" class="ativo" type="button" onclick="mostrarVisao('projetos')">Projetos</button>
+    <button id="tabLeads" class="secundario" type="button" onclick="mostrarVisao('leads')">Leads do site</button>
+  </div>
+
+  <div id="painelProjetos">
   <div class="painel-filtros">
     <div class="filtros">
       <input id="buscaProjeto" placeholder="Buscar por nome, cidade, email ou documento" oninput="aplicarFiltros()">
@@ -719,6 +760,43 @@ button.perigo {
     </div>
     <div class="coluna" id="Finalizado" ondragover="allowDrop(event)" ondrop="drop(event, 'Finalizado')">
       <h3>Finalizado</h3>
+    </div>
+  </div>
+  </div>
+
+  <div id="painelLeads" style="display:none;">
+    <div class="painel-filtros">
+      <div class="filtros">
+        <input id="buscaLead" placeholder="Buscar lead por nome, cidade, telefone ou servico" oninput="aplicarFiltrosLeads()">
+        <select id="filtroLeadStatus" onchange="aplicarFiltrosLeads()">
+          <option value="">Todos os status</option>
+          <option value="Novo">Novo</option>
+          <option value="Contato">Contato</option>
+          <option value="Qualificado">Qualificado</option>
+          <option value="Convertido">Convertido</option>
+          <option value="Perdido">Perdido</option>
+        </select>
+        <input id="filtroLeadServico" placeholder="Filtrar por servico" oninput="aplicarFiltrosLeads()">
+        <button type="button" class="secundario" onclick="carregarLeads()">Atualizar leads</button>
+      </div>
+    </div>
+
+    <div class="kanban leads">
+      <div class="coluna" id="LeadNovo" ondragover="allowDropLead(event)" ondrop="dropLead(event, 'Novo')">
+        <h3>Novo</h3>
+      </div>
+      <div class="coluna" id="LeadContato" ondragover="allowDropLead(event)" ondrop="dropLead(event, 'Contato')">
+        <h3>Contato</h3>
+      </div>
+      <div class="coluna" id="LeadQualificado" ondragover="allowDropLead(event)" ondrop="dropLead(event, 'Qualificado')">
+        <h3>Qualificado</h3>
+      </div>
+      <div class="coluna" id="LeadConvertido" ondragover="allowDropLead(event)" ondrop="dropLead(event, 'Convertido')">
+        <h3>Convertido</h3>
+      </div>
+      <div class="coluna" id="LeadPerdido" ondragover="allowDropLead(event)" ondrop="dropLead(event, 'Perdido')">
+        <h3>Perdido</h3>
+      </div>
     </div>
   </div>
 </div>

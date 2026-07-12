@@ -8,6 +8,7 @@ const ROLE_LABELS = {
 };
 let projetoDetalheAtual = null;
 let projetosCache = [];
+let leadsCache = [];
 let usuariosCache = [];
 let notificacoesCache = [];
 let authToken = localStorage.getItem(TOKEN_KEY) || "";
@@ -208,6 +209,7 @@ async function bootstrapSessao() {
     mostrarCRM();
     await carregarNotificacoes();
     await carregar();
+    await carregarLeads();
 
     if (currentUser.must_change_password) {
       abrirModalSenha(true);
@@ -242,6 +244,7 @@ async function login() {
     mostrarCRM();
     await carregarNotificacoes();
     await carregar();
+    await carregarLeads();
 
     if (currentUser.must_change_password) {
       abrirModalSenha(true);
@@ -312,6 +315,7 @@ async function solicitarRecuperacaoSenha() {
 function logout() {
   limparSessao();
   projetosCache = [];
+  leadsCache = [];
   usuariosCache = [];
   notificacoesCache = [];
   projetoDetalheAtual = null;
@@ -618,6 +622,131 @@ function aplicarFiltros() {
   renderProjetos(filtrados);
 }
 
+function mostrarVisao(visao) {
+  const mostrandoLeads = visao === "leads";
+
+  document.getElementById("painelProjetos").style.display = mostrandoLeads ? "none" : "block";
+  document.getElementById("painelLeads").style.display = mostrandoLeads ? "block" : "none";
+  document.getElementById("tabProjetos").classList.toggle("ativo", !mostrandoLeads);
+  document.getElementById("tabProjetos").classList.toggle("secundario", mostrandoLeads);
+  document.getElementById("tabLeads").classList.toggle("ativo", mostrandoLeads);
+  document.getElementById("tabLeads").classList.toggle("secundario", !mostrandoLeads);
+
+  if (mostrandoLeads) {
+    carregarLeads();
+  }
+}
+
+async function carregarLeads() {
+  try {
+    const response = await apiFetch("/leads");
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Erro ao carregar leads.");
+    }
+
+    leadsCache = data.leads || [];
+    aplicarFiltrosLeads();
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+function formatarMoeda(valor) {
+  if (valor === null || valor === undefined || valor === "") {
+    return "-";
+  }
+
+  const numero = Number(valor);
+
+  if (Number.isNaN(numero)) {
+    return valor;
+  }
+
+  return numero.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+}
+
+function renderLeads(listaLeads) {
+  const colunas = {
+    Novo: document.getElementById("LeadNovo"),
+    Contato: document.getElementById("LeadContato"),
+    Qualificado: document.getElementById("LeadQualificado"),
+    Convertido: document.getElementById("LeadConvertido"),
+    Perdido: document.getElementById("LeadPerdido"),
+  };
+
+  Object.values(colunas).forEach((coluna) => {
+    coluna.innerHTML = coluna.querySelector("h3").outerHTML;
+  });
+
+  listaLeads.forEach((lead) => {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.draggable = canChangeStatus();
+    card.id = `lead-${lead.id}`;
+
+    if (canChangeStatus()) {
+      card.addEventListener("dragstart", dragLead);
+    } else {
+      card.classList.add("sem-arraste");
+    }
+
+    const whatsapp = String(lead.telefone || "").replace(/\D/g, "");
+    const whatsappLink = whatsapp
+      ? `<a class="card-link" href="https://wa.me/55${whatsapp}" target="_blank" rel="noopener">WhatsApp</a>`
+      : "";
+    const converterBotao =
+      lead.status !== "Convertido" && canCreateProject()
+        ? `<button class="card-link" type="button" onclick="converterLead(${lead.id})">Converter</button>`
+        : "";
+
+    card.innerHTML = `
+      <div class="card-header">
+        <strong>${lead.nome}</strong>
+        <span>${converterBotao}</span>
+      </div>
+      <div class="card-detalhes">
+        Telefone: ${formatarValor(lead.telefone)} ${whatsappLink}<br>
+        Cidade: ${formatarValor(lead.cidade)}<br>
+        Servico: ${formatarValor(lead.servico)}<br>
+        Conta: ${formatarMoeda(lead.conta_reais)}<br>
+        Consumo: ${lead.consumo_kwh ? `${Number(lead.consumo_kwh).toLocaleString("pt-BR")} kWh` : "-"}<br>
+        Entrada: ${formatarData(lead.created_at)}
+        ${lead.mensagem ? `<br>Obs: ${lead.mensagem}` : ""}
+      </div>
+    `;
+
+    if (colunas[lead.status]) {
+      colunas[lead.status].appendChild(card);
+    }
+  });
+}
+
+function aplicarFiltrosLeads() {
+  const busca = (document.getElementById("buscaLead")?.value || "").trim().toLowerCase();
+  const status = document.getElementById("filtroLeadStatus")?.value || "";
+  const servico = (document.getElementById("filtroLeadServico")?.value || "").trim().toLowerCase();
+
+  const filtrados = leadsCache.filter((lead) => {
+    const textoLead = [lead.nome, lead.telefone, lead.email, lead.cidade, lead.servico, lead.mensagem]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return (
+      (!busca || textoLead.includes(busca)) &&
+      (!status || lead.status === status) &&
+      (!servico || String(lead.servico || "").toLowerCase().includes(servico))
+    );
+  });
+
+  renderLeads(filtrados);
+}
+
 function allowDrop(event) {
   if (!canChangeStatus()) {
     return;
@@ -659,6 +788,77 @@ async function drop(event, status) {
   } catch (err) {
     console.error(err);
     alert(err.message || "Nao foi possivel atualizar o status.");
+  }
+}
+
+function allowDropLead(event) {
+  if (!canChangeStatus()) {
+    return;
+  }
+
+  event.preventDefault();
+}
+
+function dragLead(event) {
+  event.dataTransfer.setData("leadId", event.target.closest(".card").id.replace("lead-", ""));
+}
+
+async function dropLead(event, status) {
+  if (!canChangeStatus()) {
+    return;
+  }
+
+  event.preventDefault();
+  const id = event.dataTransfer.getData("leadId");
+
+  if (!id) {
+    return;
+  }
+
+  try {
+    const response = await apiFetch(`/leads/${id}/status`, {
+      method: "PUT",
+      body: JSON.stringify({ status }),
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Erro ao atualizar lead.");
+    }
+
+    await carregarLeads();
+  } catch (err) {
+    console.error(err);
+    alert(err.message || "Nao foi possivel atualizar o lead.");
+  }
+}
+
+async function converterLead(id) {
+  if (!canCreateProject()) {
+    alert("Seu perfil nao pode converter leads.");
+    return;
+  }
+
+  if (!window.confirm("Converter este lead em projeto?")) {
+    return;
+  }
+
+  try {
+    const response = await apiFetch(`/leads/${id}/converter`, {
+      method: "POST",
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Erro ao converter lead.");
+    }
+
+    await carregarLeads();
+    await carregar();
+    alert("Lead convertido em projeto.");
+  } catch (err) {
+    console.error(err);
+    alert(err.message || "Erro ao converter lead.");
   }
 }
 

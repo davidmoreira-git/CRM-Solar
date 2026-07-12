@@ -609,48 +609,114 @@ function uniqueEmails(emails) {
     });
 }
 
+function parseEmailAddress(value) {
+  const text = String(value || "").trim();
+  const match = text.match(/^(.*)<([^>]+)>$/);
+
+  if (!match) {
+    return {
+      email: normalizeEmail(text),
+    };
+  }
+
+  return {
+    name: match[1].trim().replace(/^["']|["']$/g, "") || undefined,
+    email: normalizeEmail(match[2]),
+  };
+}
+
+async function sendBrevoMail({ to, subject, text }) {
+  if (!process.env.BREVO_API_KEY) {
+    return { skipped: true };
+  }
+
+  const sender = parseEmailAddress(SMTP_FROM);
+  const recipients = uniqueEmails(String(to || "").split(",")).map((email) => ({ email }));
+
+  if (!sender.email || !recipients.length) {
+    return { skipped: true };
+  }
+
+  const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": process.env.BREVO_API_KEY,
+    },
+    body: JSON.stringify({
+      sender,
+      to: recipients,
+      subject,
+      textContent: text,
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const error = new Error(data.message || "Erro ao enviar email pela Brevo.");
+    error.response = data;
+    throw error;
+  }
+
+  return {
+    provider: "brevo",
+    data,
+  };
+}
+
 async function notifyProjectOwnerStatusChange(projetoId, ownerId, statusAnterior, statusNovo, changedByUser) {
-  if (!ownerId || statusAnterior === statusNovo) {
+  if (statusAnterior === statusNovo) {
     return;
   }
 
   try {
-    const [owner, projetoResult] = await Promise.all([
-      getUserById(ownerId),
-      pool.query(
-        `SELECT id, cliente_nome
-         FROM projetos
-         WHERE id = $1`,
-        [projetoId]
-      ),
-    ]);
+    const projetoResult = await pool.query(
+      `SELECT
+         p.id,
+         p.cliente_nome,
+         owner.nome AS operador_nome,
+         owner.email AS operador_email
+       FROM projetos p
+       LEFT JOIN users owner ON owner.id = p.created_by
+       WHERE p.id = $1`,
+      [projetoId]
+    );
     const projeto = projetoResult.rows[0];
 
     if (!projeto) {
       return;
     }
 
-    const recipients = uniqueEmails([owner?.email, changedByUser?.email, STATUS_CHANGE_EMAIL]);
+    const recipients = uniqueEmails([STATUS_CHANGE_EMAIL]);
 
     if (!recipients.length) {
       return;
     }
 
     const assunto = `Projeto ${projeto.cliente_nome} mudou para ${statusNovo}`;
-    const alteradoPor = changedByUser?.nome || changedByUser?.email || "Sistema";
+    const dataAlteracao = new Date().toLocaleString("pt-BR", {
+      timeZone: "America/Sao_Paulo",
+    });
+    const operadorResponsavel = projeto.operador_nome || projeto.operador_email || "Nao informado";
     const mensagem = [
-      `O projeto ${projeto.cliente_nome} teve a etapa alterada.`,
-      "",
-      `Etapa anterior: ${statusAnterior || "-"}`,
-      `Nova etapa: ${statusNovo}`,
-      `Alterado por: ${alteradoPor}`,
+      `Nome do projeto: ${projeto.cliente_nome}`,
+      `Data da alteracao: ${dataAlteracao}`,
+      `Alteracao realizada: ${statusAnterior || "-"} -> ${statusNovo}`,
+      `Operador responsavel pelo projeto: ${operadorResponsavel}`,
     ].join("\n");
 
-    const mailInfo = await sendMail({
+    const mailInfo = process.env.BREVO_API_KEY
+      ? await sendBrevoMail({
+          to: recipients.join(", "),
+          subject: assunto,
+          text: mensagem,
+        })
+      : await sendMail({
       to: recipients.join(", "),
       subject: assunto,
       text: mensagem,
-    });
+        });
 
     console.log("Email de mudanca de etapa processado:", {
       projeto_id: projetoId,
@@ -658,6 +724,7 @@ async function notifyProjectOwnerStatusChange(projetoId, ownerId, statusAnterior
       status_novo: statusNovo,
       destinatarios: recipients,
       enviado: !mailInfo?.skipped,
+      provider: mailInfo?.provider || "smtp",
     });
   } catch (err) {
     console.error("Erro ao enviar email de mudanca de etapa:", err);

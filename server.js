@@ -672,13 +672,14 @@ async function notifyProjectOwnerStatusChange(projetoId, ownerId, statusAnterior
 
   try {
     const projetoResult = await pool.query(
-      `SELECT
-         p.id,
-         p.cliente_nome,
-         owner.nome AS operador_nome,
-         owner.email AS operador_email
-       FROM projetos p
-       LEFT JOIN users owner ON owner.id = p.created_by
+     `SELECT
+       p.id,
+       p.cliente_nome,
+       p.created_by,
+       owner.nome AS operador_nome,
+       owner.email AS operador_email
+     FROM projetos p
+     LEFT JOIN users owner ON owner.id = p.created_by
        WHERE p.id = $1`,
       [projetoId]
     );
@@ -731,17 +732,88 @@ async function notifyProjectOwnerStatusChange(projetoId, ownerId, statusAnterior
   }
 }
 
+async function getInternalNotificationRecipients() {
+  const targetEmail = normalizeEmail(STATUS_CHANGE_EMAIL);
+
+  if (targetEmail) {
+    const targetResult = await pool.query(
+      `SELECT id
+       FROM users
+       WHERE LOWER(email) = $1 AND ativo = TRUE`,
+      [targetEmail]
+    );
+
+    if (targetResult.rows.length) {
+      return targetResult.rows.map((row) => row.id);
+    }
+  }
+
+  const adminResult = await pool.query(
+    `SELECT id
+     FROM users
+     WHERE role = 'admin' AND ativo = TRUE`
+  );
+
+  return adminResult.rows.map((row) => row.id);
+}
+
+async function notifyInternalStatusChange(projetoId, statusAnterior, statusNovo) {
+  if (statusAnterior === statusNovo) {
+    return;
+  }
+
+  const projetoResult = await pool.query(
+    `SELECT
+       p.id,
+       p.cliente_nome,
+       owner.nome AS operador_nome,
+       owner.email AS operador_email
+     FROM projetos p
+     LEFT JOIN users owner ON owner.id = p.created_by
+     WHERE p.id = $1`,
+    [projetoId]
+  );
+  const projeto = projetoResult.rows[0];
+
+  if (!projeto) {
+    return;
+  }
+
+  const recipients = Array.from(
+    new Set([
+      ...await getInternalNotificationRecipients(),
+      projeto.created_by ? Number(projeto.created_by) : null,
+    ].filter(Boolean))
+  );
+
+  if (!recipients.length) {
+    return;
+  }
+
+  const dataAlteracao = new Date().toLocaleString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+  });
+  const operadorResponsavel = projeto.operador_nome || projeto.operador_email || "Nao informado";
+  const titulo = "Projeto mudou de etapa";
+  const mensagem = [
+    `Nome do projeto: ${projeto.cliente_nome}`,
+    `Data da alteracao: ${dataAlteracao}`,
+    `Alteracao realizada: ${statusAnterior || "-"} -> ${statusNovo}`,
+    `Operador responsavel pelo projeto: ${operadorResponsavel}`,
+  ].join("\n");
+
+  await Promise.all(recipients.map((userId) => createNotification(userId, projetoId, titulo, mensagem)));
+}
+
 async function notifyAutomaticStatusChange(automacao, changedByUser) {
   if (!automacao?.projeto) {
     return;
   }
 
-  await notifyProjectOwnerStatusChange(
+  await notifyInternalStatusChange(
     automacao.projeto.id,
-    automacao.projeto.created_by,
     automacao.status_anterior,
-    automacao.status_novo,
-    changedByUser
+    automacao.status_novo
   );
 }
 
@@ -2005,22 +2077,11 @@ app.put("/projetos/:id", authRequired, async (req, res) => {
 
     await client.query("COMMIT");
 
-    if (req.user.role === "admin" && Number(updateResult.rows[0].created_by) !== Number(req.user.id)) {
-      await notifyProjectOwner(
-        id,
-        updateResult.rows[0].created_by,
-        "Projeto mudou de etapa",
-        `O projeto ${updateResult.rows[0].cliente_nome} foi movido para ${status}.`
-      );
-    }
-
     if (acesso.projeto.status_atual !== status) {
-      await notifyProjectOwnerStatusChange(
+      await notifyInternalStatusChange(
         id,
-        updateResult.rows[0].created_by,
         acesso.projeto.status_atual,
-        status,
-        req.user
+        status
       );
     }
 

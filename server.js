@@ -24,6 +24,7 @@ const SMTP_FROM = process.env.SMTP_FROM || process.env.SMTP_USER || "CRM Solar <
 const STATUS_CHANGE_EMAIL = process.env.STATUS_CHANGE_EMAIL || process.env.SMTP_USER || "";
 const STATUS_PADRAO = "Documentacao";
 const STATUS_VALIDOS = ["Documentacao", "Tramitacao", "Analise", "Aprovado", "Finalizado"];
+const LEAD_STATUS_VALIDOS = ["Novo", "Contato", "Qualificado", "Convertido", "Perdido"];
 const STATUS_ORDEM = STATUS_VALIDOS.reduce((acc, status, index) => {
   acc[status] = index;
   return acc;
@@ -304,6 +305,25 @@ function mapProposta(row) {
     potencia_dimensionada_kwp: row.potencia_dimensionada_kwp,
     economia_estimada_reais: row.economia_estimada_reais,
     observacoes: row.observacoes,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+function mapLead(row) {
+  return {
+    id: row.id,
+    nome: row.nome,
+    telefone: row.telefone,
+    email: row.email,
+    cidade: row.cidade,
+    servico: row.servico,
+    conta_reais: row.conta_reais,
+    consumo_kwh: row.consumo_kwh,
+    mensagem: row.mensagem,
+    status: row.status,
+    origem: row.origem,
+    projeto_id: row.projeto_id,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -1017,14 +1037,6 @@ app.post("/leads", async (req, res) => {
       return res.status(400).json({ error: "Nome e WhatsApp sao obrigatorios." });
     }
 
-    const ownerResult = await pool.query(
-      `SELECT id, nome
-       FROM users
-       WHERE role = 'admin' AND ativo = TRUE
-       ORDER BY id
-       LIMIT 1`
-    );
-    const owner = ownerResult.rows[0] || null;
     const detalhesLead = [
       servico ? `Servico de interesse: ${servico}` : null,
       consumo ? `Consumo informado: ${consumo} kWh/mes` : null,
@@ -1035,54 +1047,43 @@ app.post("/leads", async (req, res) => {
       .join(" | ");
 
     const result = await pool.query(
-      `INSERT INTO projetos
+      `INSERT INTO leads
        (
-         cliente_nome,
+         nome,
          telefone,
          email,
          cidade,
-         estado,
-         valor_projeto,
-         vendedor_nome,
-         origem_lead,
-         status_atual,
-         created_by
+         servico,
+         conta_reais,
+         consumo_kwh,
+         mensagem,
+         status,
+         origem
        )
        VALUES
-       ($1, $2, $3, $4, $5, $6, $7, 'Site DM SolarTech', $8, $9)
-       RETURNING id, cliente_nome`,
+       ($1, $2, $3, $4, $5, $6, $7, $8, 'Novo', 'Site DM SolarTech')
+       RETURNING id, nome`,
       [
         nome,
         telefone,
         email || null,
         cidade || "Neropolis / GO",
-        "Goias",
+        servico || null,
         conta,
-        owner?.nome || "Site DM SolarTech",
-        STATUS_PADRAO,
-        owner?.id || null,
+        consumo,
+        mensagem || null,
       ]
     );
 
-    await createStatusHistory(pool, result.rows[0].id, null, STATUS_PADRAO, null);
-
-    if (detalhesLead) {
-      await pool.query(
-        `INSERT INTO projeto_observacoes (projeto_id, observacao)
-         VALUES ($1, $2)`,
-        [result.rows[0].id, detalhesLead]
-      );
-    }
-
     await notifyAdmins(
-      result.rows[0].id,
+      null,
       "Novo lead pelo site",
       `Lead: ${nome}\nWhatsApp: ${telefone}\nCidade: ${cidade || "Nao informada"}${detalhesLead ? `\n${detalhesLead}` : ""}`
     );
 
     return res.status(201).json({
       message: "Solicitacao enviada com sucesso.",
-      projeto_id: result.rows[0].id,
+      lead_id: result.rows[0].id,
     });
   } catch (err) {
     console.error("Erro ao salvar lead do site:", err);
@@ -1234,6 +1235,155 @@ app.put("/notificacoes/:id/lida", authRequired, async (req, res) => {
   } catch (err) {
     console.error("Erro ao marcar notificacao como lida:", err);
     return res.status(500).json({ error: "Erro ao marcar notificacao como lida." });
+  }
+});
+
+app.get("/leads", authRequired, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, nome, telefone, email, cidade, servico, conta_reais, consumo_kwh, mensagem, status, origem, projeto_id, created_at, updated_at
+       FROM leads
+       ORDER BY created_at DESC`
+    );
+
+    return res.json({ leads: result.rows.map(mapLead) });
+  } catch (err) {
+    console.error("Erro ao listar leads:", err);
+    return res.status(500).json({ error: "Erro ao listar leads." });
+  }
+});
+
+app.put("/leads/:id/status", authRequired, async (req, res) => {
+  try {
+    const status = String(req.body?.status || "").trim();
+
+    if (!LEAD_STATUS_VALIDOS.includes(status)) {
+      return res.status(400).json({ error: "Status de lead invalido." });
+    }
+
+    const result = await pool.query(
+      `UPDATE leads
+       SET status = $1, updated_at = NOW()
+       WHERE id = $2
+       RETURNING id, nome, telefone, email, cidade, servico, conta_reais, consumo_kwh, mensagem, status, origem, projeto_id, created_at, updated_at`,
+      [status, req.params.id]
+    );
+
+    if (!result.rows.length) {
+      return res.status(404).json({ error: "Lead nao encontrado." });
+    }
+
+    return res.json({
+      message: "Lead atualizado com sucesso.",
+      lead: mapLead(result.rows[0]),
+    });
+  } catch (err) {
+    console.error("Erro ao atualizar lead:", err);
+    return res.status(500).json({ error: "Erro ao atualizar lead." });
+  }
+});
+
+app.post("/leads/:id/converter", authRequired, async (req, res) => {
+  const client = await pool.connect();
+
+  try {
+    const permissionError = ensurePermission(req.user, "createProject");
+
+    if (permissionError) {
+      return res.status(permissionError.status).json({ error: permissionError.error });
+    }
+
+    await client.query("BEGIN");
+
+    const leadResult = await client.query(
+      `SELECT *
+       FROM leads
+       WHERE id = $1
+       FOR UPDATE`,
+      [req.params.id]
+    );
+    const lead = leadResult.rows[0];
+
+    if (!lead) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Lead nao encontrado." });
+    }
+
+    if (lead.projeto_id) {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ error: "Lead ja foi convertido em projeto." });
+    }
+
+    const projetoResult = await client.query(
+      `INSERT INTO projetos
+       (
+         cliente_nome,
+         telefone,
+         email,
+         cidade,
+         estado,
+         valor_projeto,
+         vendedor_nome,
+         origem_lead,
+         status_atual,
+         created_by
+       )
+       VALUES
+       ($1, $2, $3, $4, $5, $6, $7, 'Site DM SolarTech', $8, $9)
+       RETURNING id, cliente_nome`,
+      [
+        lead.nome,
+        lead.telefone,
+        lead.email,
+        lead.cidade || "Neropolis / GO",
+        "Goias",
+        lead.conta_reais,
+        req.user.nome,
+        STATUS_PADRAO,
+        req.user.id,
+      ]
+    );
+
+    await createStatusHistory(client, projetoResult.rows[0].id, null, STATUS_PADRAO, req.user.id);
+
+    const detalhesLead = [
+      lead.servico ? `Servico de interesse: ${lead.servico}` : null,
+      lead.consumo_kwh ? `Consumo informado: ${lead.consumo_kwh} kWh/mes` : null,
+      lead.conta_reais ? `Conta informada: R$ ${lead.conta_reais}` : null,
+      lead.mensagem ? `Mensagem: ${lead.mensagem}` : null,
+    ]
+      .filter(Boolean)
+      .join(" | ");
+
+    if (detalhesLead) {
+      await client.query(
+        `INSERT INTO projeto_observacoes (projeto_id, observacao, created_by)
+         VALUES ($1, $2, $3)`,
+        [projetoResult.rows[0].id, detalhesLead, req.user.id]
+      );
+    }
+
+    const updatedLeadResult = await client.query(
+      `UPDATE leads
+       SET status = 'Convertido', projeto_id = $1, updated_at = NOW()
+       WHERE id = $2
+       RETURNING id, nome, telefone, email, cidade, servico, conta_reais, consumo_kwh, mensagem, status, origem, projeto_id, created_at, updated_at`,
+      [projetoResult.rows[0].id, lead.id]
+    );
+
+    await client.query("COMMIT");
+
+    return res.json({
+      message: "Lead convertido em projeto.",
+      lead: mapLead(updatedLeadResult.rows[0]),
+      projeto_id: projetoResult.rows[0].id,
+    });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Erro ao converter lead:", err);
+    return res.status(500).json({ error: "Erro ao converter lead." });
+  } finally {
+    client.release();
   }
 });
 

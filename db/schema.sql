@@ -150,6 +150,37 @@ CREATE TABLE IF NOT EXISTS notificacoes (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS leads (
+  id BIGSERIAL PRIMARY KEY,
+  nome VARCHAR(150) NOT NULL,
+  telefone VARCHAR(30) NOT NULL,
+  email VARCHAR(255),
+  cidade VARCHAR(120),
+  servico VARCHAR(120),
+  conta_reais NUMERIC(12, 2),
+  consumo_kwh NUMERIC(12, 2),
+  mensagem TEXT,
+  status VARCHAR(40) NOT NULL DEFAULT 'Novo',
+  origem VARCHAR(120) NOT NULL DEFAULT 'Site DM SolarTech',
+  projeto_id BIGINT REFERENCES projetos(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS nome VARCHAR(150);
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS telefone VARCHAR(30);
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS email VARCHAR(255);
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS cidade VARCHAR(120);
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS servico VARCHAR(120);
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS conta_reais NUMERIC(12, 2);
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS consumo_kwh NUMERIC(12, 2);
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS mensagem TEXT;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS status VARCHAR(40) NOT NULL DEFAULT 'Novo';
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS origem VARCHAR(120) NOT NULL DEFAULT 'Site DM SolarTech';
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS projeto_id BIGINT REFERENCES projetos(id) ON DELETE SET NULL;
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
 CREATE TABLE IF NOT EXISTS propostas (
   id BIGSERIAL PRIMARY KEY,
   projeto_id BIGINT REFERENCES projetos(id) ON DELETE SET NULL,
@@ -264,3 +295,5 @@ CREATE INDEX IF NOT EXISTS idx_propostas_projeto ON propostas(projeto_id, create
 CREATE INDEX IF NOT EXISTS idx_status_historico_projeto ON projeto_status_historico(projeto_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_observacoes_projeto ON projeto_observacoes(projeto_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_notificacoes_user_lida ON notificacoes(user_id, lida, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_leads_created_at ON leads(created_at DESC);

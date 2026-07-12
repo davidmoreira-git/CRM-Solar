@@ -994,8 +994,100 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
+app.get("/site", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "site.html"));
+});
+
 app.get("/health", (req, res) => {
   res.json({ ok: true, status: "healthy" });
+});
+
+app.post("/leads", async (req, res) => {
+  try {
+    const nome = String(req.body?.nome || "").trim();
+    const telefone = String(req.body?.telefone || "").trim();
+    const email = normalizeEmail(req.body?.email);
+    const cidade = String(req.body?.cidade || "").trim();
+    const consumo = normalizeNumber(req.body?.consumo_kwh);
+    const conta = normalizeNumber(req.body?.conta_reais);
+    const servico = String(req.body?.servico || "").trim();
+    const mensagem = String(req.body?.mensagem || "").trim();
+
+    if (!nome || !telefone) {
+      return res.status(400).json({ error: "Nome e WhatsApp sao obrigatorios." });
+    }
+
+    const ownerResult = await pool.query(
+      `SELECT id, nome
+       FROM users
+       WHERE role = 'admin' AND ativo = TRUE
+       ORDER BY id
+       LIMIT 1`
+    );
+    const owner = ownerResult.rows[0] || null;
+    const detalhesLead = [
+      servico ? `Servico de interesse: ${servico}` : null,
+      consumo ? `Consumo informado: ${consumo} kWh/mes` : null,
+      conta ? `Conta informada: R$ ${conta}` : null,
+      mensagem ? `Mensagem: ${mensagem}` : null,
+    ]
+      .filter(Boolean)
+      .join(" | ");
+
+    const result = await pool.query(
+      `INSERT INTO projetos
+       (
+         cliente_nome,
+         telefone,
+         email,
+         cidade,
+         estado,
+         valor_projeto,
+         vendedor_nome,
+         origem_lead,
+         status_atual,
+         created_by
+       )
+       VALUES
+       ($1, $2, $3, $4, $5, $6, $7, 'Site DM SolarTech', $8, $9)
+       RETURNING id, cliente_nome`,
+      [
+        nome,
+        telefone,
+        email || null,
+        cidade || "Neropolis / GO",
+        "Goias",
+        conta,
+        owner?.nome || "Site DM SolarTech",
+        STATUS_PADRAO,
+        owner?.id || null,
+      ]
+    );
+
+    await createStatusHistory(pool, result.rows[0].id, null, STATUS_PADRAO, null);
+
+    if (detalhesLead) {
+      await pool.query(
+        `INSERT INTO projeto_observacoes (projeto_id, observacao)
+         VALUES ($1, $2)`,
+        [result.rows[0].id, detalhesLead]
+      );
+    }
+
+    await notifyAdmins(
+      result.rows[0].id,
+      "Novo lead pelo site",
+      `Lead: ${nome}\nWhatsApp: ${telefone}\nCidade: ${cidade || "Nao informada"}${detalhesLead ? `\n${detalhesLead}` : ""}`
+    );
+
+    return res.status(201).json({
+      message: "Solicitacao enviada com sucesso.",
+      projeto_id: result.rows[0].id,
+    });
+  } catch (err) {
+    console.error("Erro ao salvar lead do site:", err);
+    return res.status(500).json({ error: "Nao foi possivel enviar sua solicitacao agora." });
+  }
 });
 
 app.post("/register", async (req, res) => {

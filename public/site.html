@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DM SolarTech | Energia Solar em Neropolis e Goias</title>
+  <meta name="description" content="DM SolarTech: venda, projetos, instalacoes, manutencoes, melhorias, sistemas hibridos e off grid em Neropolis e regiao de Goias.">
+  <link rel="stylesheet" href="site.css?v=20260712-dm-site">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="#inicio" aria-label="DM SolarTech">
+        <img src="assets/dm-solartech-logo.png" alt="DM SolarTech">
+        <div>
+          <div class="brand-name">DM SolarTech</div>
+          <div class="brand-region">Neropolis e regiao de Goias</div>
+        </div>
+      </a>
+      <nav class="nav-actions" aria-label="Acoes principais">
+        <a class="button secondary" href="#orcamento">Simular economia</a>
+        <a class="button whatsapp" href="https://wa.me/5562995126967?text=Ol%C3%A1%2C%20quero%20um%20or%C3%A7amento%20de%20energia%20solar." target="_blank" rel="noopener">WhatsApp</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="inicio">
+    <section class="hero">
+      <div class="hero-inner">
+        <div class="hero-copy">
+          <span class="eyebrow">Energia solar com projeto, instalacao e suporte local</span>
+          <h1>DM SolarTech</h1>
+          <p>Venda, projetos, instalacoes, manutencoes, melhorias, sistemas hibridos e off grid para residencias, comercios e propriedades rurais em Neropolis e regiao de Goias.</p>
+          <div class="hero-actions">
+            <a class="button" href="#orcamento">Pedir orcamento</a>
+            <a class="button secondary" href="#servicos">Ver servicos</a>
+          </div>
+        </div>
+
+        <aside class="quick-panel" aria-label="Calculadora solar rapida">
+          <h2>Calculadora solar</h2>
+          <p>Informe seu gasto ou consumo mensal para ter uma estimativa inicial do sistema.</p>
+          <div class="calculator">
+            <label>
+              Valor medio da conta de energia
+              <input id="calcConta" type="number" min="0" step="10" placeholder="Ex: 650">
+            </label>
+            <label>
+              Consumo mensal em kWh
+              <input id="calcConsumo" type="number" min="0" step="10" placeholder="Opcional">
+            </label>
+            <div class="result">
+              <div class="metric">
+                <strong id="calcPotencia">-</strong>
+                <span>Potencia estimada</span>
+              </div>
+              <div class="metric">
+                <strong id="calcGeracao">-</strong>
+                <span>Geracao media mensal</span>
+              </div>
+            </div>
+            <button class="button" type="button" onclick="preencherOrcamento()">Usar na solicitacao</button>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="band" id="servicos">
+      <div class="section">
+        <h2>Solucoes para cada tipo de projeto</h2>
+        <p class="section-intro">Atendimento consultivo do dimensionamento ate a instalacao e melhorias do sistema, com foco em economia, seguranca e acompanhamento tecnico.</p>
+        <div class="services">
+          <div class="service">
+            <strong>Venda de sistemas</strong>
+            <span>Equipamentos fotovoltaicos dimensionados para o seu consumo.</span>
+          </div>
+          <div class="service">
+            <strong>Projetos solares</strong>
+            <span>Projeto eletrico, homologacao e apoio tecnico para execucao.</span>
+          </div>
+          <div class="service">
+            <strong>Instalacoes</strong>
+            <span>Montagem de sistemas residenciais, comerciais e rurais.</span>
+          </div>
+          <div class="service">
+            <strong>Manutencoes</strong>
+            <span>Inspecao, limpeza, correcao de falhas e acompanhamento.</span>
+          </div>
+          <div class="service">
+            <strong>Melhorias</strong>
+            <span>Expansao, ajustes e modernizacao de sistemas existentes.</span>
+          </div>
+          <div class="service">
+            <strong>Sistemas hibridos</strong>
+            <span>Integracao com baterias para mais autonomia e seguranca.</span>
+          </div>
+          <div class="service">
+            <strong>Sistemas off grid</strong>
+            <span>Solucoes isoladas para areas rurais e locais sem rede.</span>
+          </div>
+          <div class="service">
+            <strong>Seguranca eletronica</strong>
+            <span>Apoio em solucoes integradas para monitoramento e protecao.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="lead-section" id="orcamento">
+      <div class="lead-grid">
+        <div class="lead-copy">
+          <h2>Receba uma avaliacao para o seu imovel</h2>
+          <p>Preencha os dados e a equipe DM SolarTech entra em contato pelo WhatsApp para entender sua conta de energia, o tipo de instalacao e a melhor solucao.</p>
+          <ul>
+            <li>Atendimento em Neropolis e regiao de Goias</li>
+            <li>Pre-analise de consumo e potencial de economia</li>
+            <li>Lead enviado direto para o CRM da equipe</li>
+          </ul>
+        </div>
+
+        <form class="lead-form" id="leadForm">
+          <div class="form-grid">
+            <label class="full">
+              Nome completo
+              <input id="leadNome" name="nome" required autocomplete="name">
+            </label>
+            <label>
+              WhatsApp
+              <input id="leadTelefone" name="telefone" required placeholder="(62) 99999-9999" autocomplete="tel">
+            </label>
+            <label>
+              Email
+              <input id="leadEmail" name="email" type="email" autocomplete="email">
+            </label>
+            <label>
+              Cidade
+              <input id="leadCidade" name="cidade" placeholder="Neropolis / GO">
+            </label>
+            <label>
+              Servico de interesse
+              <select id="leadServico" name="servico">
+                <option>Energia solar residencial</option>
+                <option>Energia solar comercial</option>
+                <option>Projeto fotovoltaico</option>
+                <option>Instalacao</option>
+                <option>Manutencao</option>
+                <option>Melhorias em sistema existente</option>
+                <option>Sistema hibrido</option>
+                <option>Sistema off grid</option>
+              </select>
+            </label>
+            <label>
+              Conta media em R$
+              <input id="leadConta" name="conta_reais" type="number" min="0" step="10">
+            </label>
+            <label>
+              Consumo em kWh
+              <input id="leadConsumo" name="consumo_kwh" type="number" min="0" step="10">
+            </label>
+            <label class="full">
+              Observacoes
+              <textarea id="leadMensagem" name="mensagem" placeholder="Conte se e casa, comercio, rural, se ja possui sistema ou se quer baterias."></textarea>
+            </label>
+          </div>
+          <button class="button" type="submit">Enviar solicitacao</button>
+          <div class="form-status" id="formStatus"></div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+      <strong>DM SolarTech</strong>
+      <span>Neropolis e regiao de Goias</span>
+      <span>WhatsApp: (62) 99512-6967</span>
+    </div>
+  </footer>
+
+  <script src="site.js?v=20260712-dm-site"></script>
+</body>
+</html>

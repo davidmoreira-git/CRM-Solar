@@ -760,7 +760,7 @@ async function getInternalNotificationRecipients() {
   return Array.from(recipients);
 }
 
-async function notifyInternalStatusChange(projetoId, statusAnterior, statusNovo) {
+async function notifyInternalStatusChange(projetoId, statusAnterior, statusNovo, changedById = null) {
   if (statusAnterior === statusNovo) {
     return;
   }
@@ -787,6 +787,7 @@ async function notifyInternalStatusChange(projetoId, statusAnterior, statusNovo)
     new Set([
       ...await getInternalNotificationRecipients(),
       projeto.created_by ? Number(projeto.created_by) : null,
+      changedById ? Number(changedById) : null,
     ].filter(Boolean))
   );
 
@@ -817,7 +818,8 @@ async function notifyAutomaticStatusChange(automacao, changedByUser) {
   await notifyInternalStatusChange(
     automacao.projeto.id,
     automacao.status_anterior,
-    automacao.status_novo
+    automacao.status_novo,
+    changedByUser?.id
   );
 }
 
@@ -2105,7 +2107,8 @@ app.put("/projetos/:id", authRequired, async (req, res) => {
       await notifyInternalStatusChange(
         id,
         acesso.projeto.status_atual,
-        status
+        status,
+        req.user.id
       );
     }
 

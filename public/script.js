@@ -12,6 +12,7 @@ let usuariosCache = [];
 let notificacoesCache = [];
 let authToken = localStorage.getItem(TOKEN_KEY) || "";
 let currentUser = JSON.parse(localStorage.getItem(USER_KEY) || "null");
+let notificacoesTimer = null;
 
 function setMensagem(elementId, message, type) {
   const element = document.getElementById(elementId);
@@ -111,16 +112,37 @@ function mostrarCRM() {
   document.getElementById("crm").style.display = "block";
   atualizarUsuarioAtual();
   atualizarPermissoesUI();
+  iniciarAtualizacaoNotificacoes();
 }
 
 function mostrarLogin() {
   document.getElementById("loginBox").style.display = "flex";
   document.getElementById("crm").style.display = "none";
+  pararAtualizacaoNotificacoes();
   fecharDetalhes();
   fecharModalUsuarios();
   fecharModalSenha();
   fecharModalNotificacoes();
   atualizarUsuarioAtual();
+}
+
+function iniciarAtualizacaoNotificacoes() {
+  if (notificacoesTimer) {
+    return;
+  }
+
+  notificacoesTimer = setInterval(() => {
+    if (authToken && document.getElementById("notificacoesOverlay")?.style.display !== "block") {
+      carregarNotificacoes();
+    }
+  }, 15000);
+}
+
+function pararAtualizacaoNotificacoes() {
+  if (notificacoesTimer) {
+    clearInterval(notificacoesTimer);
+    notificacoesTimer = null;
+  }
 }
 
 function mostrarPainelAuth(tipo) {
@@ -1302,4 +1324,14 @@ async function gerarSenhaTemporaria(userId) {
 
 document.addEventListener("DOMContentLoaded", () => {
   bootstrapSessao();
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") {
+    return;
+  }
+
+  if (document.getElementById("notificacoesOverlay")?.style.display === "block") {
+    fecharModalNotificacoes();
+  }
 });

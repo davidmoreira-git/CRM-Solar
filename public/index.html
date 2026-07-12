@@ -524,6 +524,22 @@ button.perigo {
   margin-top: 0;
 }
 
+.modal-topo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.modal-topo h3 {
+  margin: 0;
+}
+
+.modal-fechar {
+  flex: 0 0 auto;
+}
+
 .modal-card input,
 .modal-card select {
   width: 100%;
@@ -1015,15 +1031,15 @@ button.perigo {
 
 <div id="notificacoesOverlay" class="overlay-modal">
   <div class="modal-card">
-    <h3>Notificacoes</h3>
-    <div id="listaNotificacoes"></div>
-    <div class="acoes-modal">
-      <button class="secundario" onclick="fecharModalNotificacoes()">Fechar</button>
+    <div class="modal-topo">
+      <h3>Notificacoes</h3>
+      <button class="secundario modal-fechar" type="button" onclick="fecharModalNotificacoes()">Fechar</button>
     </div>
+    <div id="listaNotificacoes"></div>
   </div>
 </div>
 
-<script src="script.js?v=20260712-notificacoes-auto"></script>
+<script src="script.js?v=20260712-notificacoes-polling"></script>
 
 </body>
 </html>

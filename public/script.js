@@ -978,7 +978,14 @@ async function abrirDetalhes(id) {
     }
 
     projetoDetalheAtual = id;
-    preencherDetalhes(data.projeto, data.historico, data.observacoes, data.documentos, data.documento_links || {});
+    preencherDetalhes(
+      data.projeto,
+      data.historico,
+      data.observacoes,
+      data.documentos,
+      data.documento_links || {},
+      data.formulario_equatorial
+    );
     document.getElementById("detalheOverlay").style.display = "block";
     document.body.style.overflow = "hidden";
   } catch (err) {
@@ -998,7 +1005,7 @@ function fecharDetalhes(event) {
   document.body.style.overflow = "";
 }
 
-function preencherDetalhes(projeto, historico, observacoes, documentos, documentoLinks) {
+function preencherDetalhes(projeto, historico, observacoes, documentos, documentoLinks, formularioEquatorial) {
   document.getElementById("detalheTitulo").textContent = projeto.cliente_nome;
   document.getElementById("detalheStatus").textContent = `Status atual: ${formatarValor(projeto.status)}`;
   document.getElementById("detClienteNome").value = projeto.cliente_nome || "";
@@ -1026,6 +1033,7 @@ function preencherDetalhes(projeto, historico, observacoes, documentos, document
   preencherSelectResponsavel("detOwnerProjeto", projeto.created_by || currentUser?.id);
   document.getElementById("botaoExcluirProjeto").style.display = canDeleteProject() ? "inline-flex" : "none";
   preencherDocumentacao(documentos, documentoLinks);
+  preencherFormularioEquatorial(formularioEquatorial);
 
   if (!historico.length) {
     renderVazio("detalheHistorico", "Nenhuma mudanca de status registrada ainda.");
@@ -1056,6 +1064,73 @@ function preencherDetalhes(projeto, historico, observacoes, documentos, document
         `
       )
       .join("");
+  }
+}
+
+const CAMPOS_FORMULARIO_EQUATORIAL = {
+  eqContaContrato: "conta_contrato",
+  eqCep: "cep",
+  eqEndereco: "endereco",
+  eqNumero: "numero",
+  eqComplemento: "complemento",
+  eqBairro: "bairro",
+  eqCoordenadas: "coordenadas",
+  eqModalidade: "modalidade_compensacao",
+  eqTipoSolicitacao: "tipo_solicitacao",
+  eqTipoGeracao: "tipo_geracao",
+  eqPotenciaDisponibilizada: "potencia_disponibilizada_kw",
+  eqPotenciaInjetavel: "potencia_maxima_injetavel_kw",
+  eqFabricanteModulo: "fabricante_modulos",
+  eqModeloModulo: "modelo_modulos",
+  eqPotenciaModulo: "potencia_modulo_w",
+  eqQuantidadeModulos: "quantidade_modulos",
+  eqFabricanteInversor: "fabricante_inversores",
+  eqModeloInversor: "modelo_inversores",
+  eqPotenciaInversor: "potencia_inversor_kw",
+  eqQuantidadeInversores: "quantidade_inversores",
+  eqResponsavelNome: "responsavel_tecnico_nome",
+  eqResponsavelRegistro: "responsavel_tecnico_registro",
+  eqResponsavelTelefone: "responsavel_tecnico_telefone",
+  eqResponsavelEmail: "responsavel_tecnico_email",
+  eqObservacoes: "observacoes",
+};
+
+function preencherFormularioEquatorial(formulario) {
+  Object.entries(CAMPOS_FORMULARIO_EQUATORIAL).forEach(([elementId, field]) => {
+    const element = document.getElementById(elementId);
+    if (element) {
+      element.value = formulario?.[field] ?? (field === "tipo_geracao" ? "Solar Fotovoltaica" : "");
+    }
+  });
+}
+
+async function salvarFormularioEquatorial() {
+  if (!projetoDetalheAtual) {
+    alert("Nenhum projeto selecionado.");
+    return;
+  }
+
+  const payload = {};
+  Object.entries(CAMPOS_FORMULARIO_EQUATORIAL).forEach(([elementId, field]) => {
+    payload[field] = document.getElementById(elementId).value.trim();
+  });
+
+  try {
+    const response = await apiFetch(`/projetos/${projetoDetalheAtual}/formulario-equatorial`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Erro ao salvar os dados do formulario Equatorial.");
+    }
+
+    preencherFormularioEquatorial(data.formulario_equatorial);
+    alert("Dados do formulario Equatorial salvos com sucesso.");
+  } catch (err) {
+    console.error(err);
+    alert(err.message || "Erro ao salvar os dados do formulario Equatorial.");
   }
 }
 

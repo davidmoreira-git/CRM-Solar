@@ -470,12 +470,18 @@ button.perigo {
 
 .detalhe-form input,
 .detalhe-form select,
+.detalhe-form textarea,
 .documento-item input {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: white;
+}
+
+.detalhe-form textarea {
+  min-height: 88px;
+  resize: vertical;
 }
 
 .documentos-grid,
@@ -924,6 +930,60 @@ button.perigo {
             <div class="acoes-modal">
               <button id="botaoSalvarProjeto" onclick="salvarEdicaoProjeto()">Salvar alteracoes</button>
               <button id="botaoExcluirProjeto" class="perigo" onclick="excluirProjeto()">Excluir projeto</button>
+            </div>
+          </div>
+
+          <div class="detalhe-bloco">
+            <h3>Dados para formulario Equatorial</h3>
+            <p class="documento-ajuda">Complete os dados que serao usados para gerar o formulario oficial da distribuidora.</p>
+            <div class="detalhe-form" id="formularioEquatorial">
+              <div><label for="eqContaContrato">Conta contrato / UC</label><input id="eqContaContrato"></div>
+              <div><label for="eqCep">CEP</label><input id="eqCep"></div>
+              <div class="full"><label for="eqEndereco">Endereco</label><input id="eqEndereco"></div>
+              <div><label for="eqNumero">Numero</label><input id="eqNumero"></div>
+              <div><label for="eqComplemento">Complemento</label><input id="eqComplemento"></div>
+              <div><label for="eqBairro">Bairro</label><input id="eqBairro"></div>
+              <div><label for="eqCoordenadas">Coordenadas</label><input id="eqCoordenadas" placeholder="Latitude/longitude ou UTM"></div>
+              <div>
+                <label for="eqModalidade">Modalidade de compensacao</label>
+                <select id="eqModalidade">
+                  <option value="">Selecione</option>
+                  <option>Autoconsumo Local</option>
+                  <option>Autoconsumo Remoto</option>
+                  <option>Geracao Compartilhada</option>
+                  <option>Empreendimento de Multiplas Unidades Consumidoras</option>
+                </select>
+              </div>
+              <div>
+                <label for="eqTipoSolicitacao">Tipo de solicitacao</label>
+                <select id="eqTipoSolicitacao">
+                  <option value="">Selecione</option>
+                  <option>Conexao em UC existente sem aumento de potencia disponibilizada</option>
+                  <option>Conexao em UC existente com aumento de potencia disponibilizada</option>
+                  <option>Ligacao nova de UC com geracao distribuida</option>
+                  <option>Aumento da potencia de geracao sem aumento de potencia disponibilizada</option>
+                  <option>Aumento da potencia de geracao com aumento de potencia disponibilizada</option>
+                </select>
+              </div>
+              <div><label for="eqTipoGeracao">Tipo de geracao</label><input id="eqTipoGeracao" value="Solar Fotovoltaica"></div>
+              <div><label for="eqPotenciaDisponibilizada">Potencia disponibilizada (kW)</label><input id="eqPotenciaDisponibilizada" inputmode="decimal"></div>
+              <div><label for="eqPotenciaInjetavel">Potencia maxima injetavel (kW)</label><input id="eqPotenciaInjetavel" inputmode="decimal"></div>
+              <div><label for="eqFabricanteModulo">Fabricante dos modulos</label><input id="eqFabricanteModulo"></div>
+              <div><label for="eqModeloModulo">Modelo dos modulos</label><input id="eqModeloModulo"></div>
+              <div><label for="eqPotenciaModulo">Potencia do modulo (W)</label><input id="eqPotenciaModulo" inputmode="decimal"></div>
+              <div><label for="eqQuantidadeModulos">Quantidade de modulos</label><input id="eqQuantidadeModulos" inputmode="numeric"></div>
+              <div><label for="eqFabricanteInversor">Fabricante dos inversores</label><input id="eqFabricanteInversor"></div>
+              <div><label for="eqModeloInversor">Modelo dos inversores</label><input id="eqModeloInversor"></div>
+              <div><label for="eqPotenciaInversor">Potencia do inversor (kW)</label><input id="eqPotenciaInversor" inputmode="decimal"></div>
+              <div><label for="eqQuantidadeInversores">Quantidade de inversores</label><input id="eqQuantidadeInversores" inputmode="numeric"></div>
+              <div class="full"><label for="eqResponsavelNome">Responsavel tecnico</label><input id="eqResponsavelNome"></div>
+              <div><label for="eqResponsavelRegistro">Registro profissional</label><input id="eqResponsavelRegistro" placeholder="CREA/CFT"></div>
+              <div><label for="eqResponsavelTelefone">Telefone do responsavel</label><input id="eqResponsavelTelefone"></div>
+              <div class="full"><label for="eqResponsavelEmail">E-mail do responsavel</label><input id="eqResponsavelEmail" type="email"></div>
+              <div class="full"><label for="eqObservacoes">Observacoes</label><textarea id="eqObservacoes"></textarea></div>
+            </div>
+            <div class="acoes-modal">
+              <button type="button" onclick="salvarFormularioEquatorial()">Salvar dados do formulario</button>
             </div>
           </div>
 

@@ -348,6 +348,36 @@ function buildProjetoValues(body, ownerName) {
   ];
 }
 
+function buildFormularioEquatorialValues(body) {
+  return [
+    body.conta_contrato || null,
+    body.cep || null,
+    body.endereco || null,
+    body.numero || null,
+    body.complemento || null,
+    body.bairro || null,
+    body.coordenadas || null,
+    body.modalidade_compensacao || null,
+    body.tipo_solicitacao || null,
+    body.tipo_geracao || "Solar Fotovoltaica",
+    normalizeNumber(body.potencia_disponibilizada_kw),
+    normalizeNumber(body.potencia_maxima_injetavel_kw),
+    body.fabricante_modulos || null,
+    body.modelo_modulos || null,
+    normalizeNumber(body.potencia_modulo_w),
+    normalizeNumber(body.quantidade_modulos),
+    body.fabricante_inversores || null,
+    body.modelo_inversores || null,
+    normalizeNumber(body.potencia_inversor_kw),
+    normalizeNumber(body.quantidade_inversores),
+    body.responsavel_tecnico_nome || null,
+    body.responsavel_tecnico_registro || null,
+    body.responsavel_tecnico_telefone || null,
+    body.responsavel_tecnico_email || null,
+    body.observacoes || null,
+  ];
+}
+
 function buildPropostaValues(body) {
   return [
     body.projeto_id || null,
@@ -2046,6 +2076,13 @@ app.get("/projetos/:id", authRequired, async (req, res) => {
       [id]
     );
 
+    const formularioEquatorialResult = await pool.query(
+      `SELECT *
+       FROM projeto_formulario_equatorial
+       WHERE projeto_id = $1`,
+      [id]
+    );
+
     const documentos = documentosResult.rows[0] || null;
 
     return res.json({
@@ -2053,11 +2090,77 @@ app.get("/projetos/:id", authRequired, async (req, res) => {
       historico: historicoResult.rows,
       observacoes: observacoesResult.rows,
       documentos,
+      formulario_equatorial: formularioEquatorialResult.rows[0] || null,
       documento_links: buildProtectedDocumentLinks(id, documentos),
     });
   } catch (err) {
     console.error("Erro ao buscar projeto:", err);
     return res.status(500).json({ error: "Erro ao buscar projeto." });
+  }
+});
+
+app.put("/projetos/:id/formulario-equatorial", authRequired, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const acesso = await getProjetoAcessivel(id, req.user);
+
+    if (acesso.error) {
+      return res.status(acesso.status).json({ error: acesso.error });
+    }
+
+    const values = buildFormularioEquatorialValues(req.body || {});
+    const result = await pool.query(
+      `INSERT INTO projeto_formulario_equatorial (
+         projeto_id, conta_contrato, cep, endereco, numero, complemento, bairro,
+         coordenadas, modalidade_compensacao, tipo_solicitacao, tipo_geracao,
+         potencia_disponibilizada_kw, potencia_maxima_injetavel_kw,
+         fabricante_modulos, modelo_modulos, potencia_modulo_w, quantidade_modulos,
+         fabricante_inversores, modelo_inversores, potencia_inversor_kw, quantidade_inversores,
+         responsavel_tecnico_nome, responsavel_tecnico_registro,
+         responsavel_tecnico_telefone, responsavel_tecnico_email, observacoes
+       ) VALUES (
+         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
+         $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26
+       )
+       ON CONFLICT (projeto_id) DO UPDATE SET
+         conta_contrato = EXCLUDED.conta_contrato,
+         cep = EXCLUDED.cep,
+         endereco = EXCLUDED.endereco,
+         numero = EXCLUDED.numero,
+         complemento = EXCLUDED.complemento,
+         bairro = EXCLUDED.bairro,
+         coordenadas = EXCLUDED.coordenadas,
+         modalidade_compensacao = EXCLUDED.modalidade_compensacao,
+         tipo_solicitacao = EXCLUDED.tipo_solicitacao,
+         tipo_geracao = EXCLUDED.tipo_geracao,
+         potencia_disponibilizada_kw = EXCLUDED.potencia_disponibilizada_kw,
+         potencia_maxima_injetavel_kw = EXCLUDED.potencia_maxima_injetavel_kw,
+         fabricante_modulos = EXCLUDED.fabricante_modulos,
+         modelo_modulos = EXCLUDED.modelo_modulos,
+         potencia_modulo_w = EXCLUDED.potencia_modulo_w,
+         quantidade_modulos = EXCLUDED.quantidade_modulos,
+         fabricante_inversores = EXCLUDED.fabricante_inversores,
+         modelo_inversores = EXCLUDED.modelo_inversores,
+         potencia_inversor_kw = EXCLUDED.potencia_inversor_kw,
+         quantidade_inversores = EXCLUDED.quantidade_inversores,
+         responsavel_tecnico_nome = EXCLUDED.responsavel_tecnico_nome,
+         responsavel_tecnico_registro = EXCLUDED.responsavel_tecnico_registro,
+         responsavel_tecnico_telefone = EXCLUDED.responsavel_tecnico_telefone,
+         responsavel_tecnico_email = EXCLUDED.responsavel_tecnico_email,
+         observacoes = EXCLUDED.observacoes,
+         updated_at = NOW()
+       RETURNING *`,
+      [id, ...values]
+    );
+
+    return res.json({
+      message: "Dados do formulario Equatorial salvos com sucesso.",
+      formulario_equatorial: result.rows[0],
+    });
+  } catch (err) {
+    console.error("Erro ao salvar formulario Equatorial:", err);
+    return res.status(500).json({ error: "Erro ao salvar os dados do formulario Equatorial." });
   }
 });
 

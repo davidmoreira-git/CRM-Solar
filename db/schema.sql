@@ -55,6 +55,37 @@ ALTER TABLE projetos ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DE
 ALTER TABLE projetos ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 ALTER TABLE projetos ALTER COLUMN estado TYPE VARCHAR(120);
 
+CREATE TABLE IF NOT EXISTS projeto_formulario_equatorial (
+  projeto_id BIGINT PRIMARY KEY REFERENCES projetos(id) ON DELETE CASCADE,
+  conta_contrato VARCHAR(60),
+  cep VARCHAR(20),
+  endereco VARCHAR(255),
+  numero VARCHAR(30),
+  complemento VARCHAR(120),
+  bairro VARCHAR(120),
+  coordenadas VARCHAR(120),
+  modalidade_compensacao VARCHAR(80),
+  tipo_solicitacao VARCHAR(160),
+  tipo_geracao VARCHAR(80) DEFAULT 'Solar Fotovoltaica',
+  potencia_disponibilizada_kw NUMERIC(10, 3),
+  potencia_maxima_injetavel_kw NUMERIC(10, 3),
+  fabricante_modulos VARCHAR(160),
+  modelo_modulos VARCHAR(160),
+  potencia_modulo_w NUMERIC(10, 2),
+  quantidade_modulos INTEGER,
+  fabricante_inversores VARCHAR(160),
+  modelo_inversores VARCHAR(160),
+  potencia_inversor_kw NUMERIC(10, 3),
+  quantidade_inversores INTEGER,
+  responsavel_tecnico_nome VARCHAR(160),
+  responsavel_tecnico_registro VARCHAR(80),
+  responsavel_tecnico_telefone VARCHAR(30),
+  responsavel_tecnico_email VARCHAR(255),
+  observacoes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 DO $$
 BEGIN
   IF EXISTS (

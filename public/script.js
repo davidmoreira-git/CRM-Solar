@@ -677,6 +677,11 @@ function renderProjetos(listaProjetos) {
       colunas[projeto.status].appendChild(card);
     }
   });
+
+  Object.values(colunas).forEach((coluna) => {
+    const contador = coluna.querySelector(".kanban-contador");
+    if (contador) contador.textContent = String(coluna.querySelectorAll(":scope > .card").length);
+  });
 }
 
 function aplicarFiltros() {

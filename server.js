@@ -2078,12 +2078,14 @@ app.get("/projetos/:id", authRequired, async (req, res) => {
       [id]
     );
 
-    const formularioEquatorialResult = await pool.query(
-      `SELECT *
-       FROM projeto_formulario_equatorial
-       WHERE projeto_id = $1`,
-      [id]
-    );
+    const formularioEquatorialResult = req.user.role === "admin"
+      ? await pool.query(
+          `SELECT *
+           FROM projeto_formulario_equatorial
+           WHERE projeto_id = $1`,
+          [id]
+        )
+      : { rows: [] };
 
     const materiaisResult = await pool.query(
       `SELECT id, descricao, categoria, quantidade, unidade, observacao, ordem, created_at, updated_at
@@ -2167,6 +2169,10 @@ app.put("/projetos/:id/formulario-equatorial", authRequired, async (req, res) =>
   const { id } = req.params;
 
   try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ error: "Apenas administradores podem acessar os dados do formulario." });
+    }
+
     const acesso = await getProjetoAcessivel(id, req.user);
 
     if (acesso.error) {

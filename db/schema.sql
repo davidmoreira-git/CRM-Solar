@@ -171,6 +171,21 @@ CREATE TABLE IF NOT EXISTS projeto_observacoes (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS projeto_materiais (
+  id BIGSERIAL PRIMARY KEY,
+  projeto_id BIGINT NOT NULL REFERENCES projetos(id) ON DELETE CASCADE,
+  descricao VARCHAR(240) NOT NULL,
+  categoria VARCHAR(100),
+  quantidade NUMERIC(12, 3) NOT NULL DEFAULT 1,
+  unidade VARCHAR(30) NOT NULL DEFAULT 'un',
+  observacao TEXT,
+  ordem INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_materiais_projeto ON projeto_materiais(projeto_id, ordem, id);
+
 CREATE TABLE IF NOT EXISTS notificacoes (
   id BIGSERIAL PRIMARY KEY,
   user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

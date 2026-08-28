@@ -2083,6 +2083,14 @@ app.get("/projetos/:id", authRequired, async (req, res) => {
       [id]
     );
 
+    const materiaisResult = await pool.query(
+      `SELECT id, descricao, categoria, quantidade, unidade, observacao, ordem, created_at, updated_at
+       FROM projeto_materiais
+       WHERE projeto_id = $1
+       ORDER BY ordem, id`,
+      [id]
+    );
+
     const documentos = documentosResult.rows[0] || null;
 
     return res.json({
@@ -2091,11 +2099,65 @@ app.get("/projetos/:id", authRequired, async (req, res) => {
       observacoes: observacoesResult.rows,
       documentos,
       formulario_equatorial: formularioEquatorialResult.rows[0] || null,
+      materiais: materiaisResult.rows,
       documento_links: buildProtectedDocumentLinks(id, documentos),
     });
   } catch (err) {
     console.error("Erro ao buscar projeto:", err);
     return res.status(500).json({ error: "Erro ao buscar projeto." });
+  }
+});
+
+app.put("/projetos/:id/materiais", authRequired, async (req, res) => {
+  const { id } = req.params;
+  const materiais = Array.isArray(req.body.materiais) ? req.body.materiais : [];
+  const client = await pool.connect();
+
+  try {
+    const permissionError = ensurePermission(req.user, "changeStatus");
+    if (permissionError) return res.status(permissionError.status).json({ error: permissionError.error });
+
+    const acesso = await getProjetoAcessivel(id, req.user);
+    if (acesso.error) return res.status(acesso.status).json({ error: acesso.error });
+
+    const normalizados = materiais
+      .map((item, ordem) => ({
+        descricao: String(item.descricao || "").trim(),
+        categoria: String(item.categoria || "").trim() || null,
+        quantidade: Number(String(item.quantidade ?? 1).replace(",", ".")),
+        unidade: String(item.unidade || "un").trim() || "un",
+        observacao: String(item.observacao || "").trim() || null,
+        ordem,
+      }))
+      .filter((item) => item.descricao);
+
+    if (normalizados.some((item) => !Number.isFinite(item.quantidade) || item.quantidade <= 0)) {
+      return res.status(400).json({ error: "Informe quantidades validas para os materiais." });
+    }
+
+    await client.query("BEGIN");
+    await client.query("DELETE FROM projeto_materiais WHERE projeto_id = $1", [id]);
+    for (const item of normalizados) {
+      await client.query(
+        `INSERT INTO projeto_materiais (projeto_id, descricao, categoria, quantidade, unidade, observacao, ordem)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [id, item.descricao, item.categoria, item.quantidade, item.unidade, item.observacao, item.ordem]
+      );
+    }
+    await client.query("COMMIT");
+
+    const result = await pool.query(
+      `SELECT id, descricao, categoria, quantidade, unidade, observacao, ordem, created_at, updated_at
+       FROM projeto_materiais WHERE projeto_id = $1 ORDER BY ordem, id`,
+      [id]
+    );
+    return res.json({ message: "Lista de materiais salva com sucesso.", materiais: result.rows });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Erro ao salvar materiais:", err);
+    return res.status(500).json({ error: "Erro ao salvar lista de materiais." });
+  } finally {
+    client.release();
   }
 });
 

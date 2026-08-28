@@ -11,6 +11,7 @@ const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const pool = require("./db");
 const { initializeDatabase } = require("./db/init");
+const { gerarFormularioEquatorial } = require("./tools/gerar_formulario_equatorial");
 
 const app = express();
 const HOST = process.env.HOST || "0.0.0.0";
@@ -2231,6 +2232,46 @@ app.put("/projetos/:id/formulario-equatorial", authRequired, async (req, res) =>
   } catch (err) {
     console.error("Erro ao salvar formulario Equatorial:", err);
     return res.status(500).json({ error: "Erro ao salvar os dados do formulario Equatorial." });
+  }
+});
+
+app.get("/projetos/:id/formulario-equatorial/gerar", authRequired, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ error: "Apenas administradores podem gerar o formulario." });
+    }
+
+    const acesso = await getProjetoAcessivel(id, req.user);
+    if (acesso.error) {
+      return res.status(acesso.status).json({ error: acesso.error });
+    }
+
+    const formularioResult = await pool.query(
+      "SELECT * FROM projeto_formulario_equatorial WHERE projeto_id = $1",
+      [id]
+    );
+    const formulario = formularioResult.rows[0];
+    if (!formulario) {
+      return res.status(400).json({ error: "Salve os dados do formulario antes de gerar o arquivo." });
+    }
+
+    const arquivo = await gerarFormularioEquatorial(acesso.projeto, formulario);
+    const nomeCliente = String(acesso.projeto.cliente_nome || `projeto-${id}`)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9_-]+/gi, "-")
+      .replace(/^-+|-+$/g, "")
+      .toLowerCase();
+    const nomeArquivo = `formulario-equatorial-${nomeCliente || id}.xlsx`;
+
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="${nomeArquivo}"`);
+    return res.send(arquivo);
+  } catch (err) {
+    console.error("Erro ao gerar formulario Equatorial:", err);
+    return res.status(500).json({ error: "Erro ao gerar o formulario Equatorial." });
   }
 });
 

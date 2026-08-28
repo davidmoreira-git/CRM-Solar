@@ -1345,15 +1345,16 @@ function preencherFormularioEquatorial(formulario) {
   });
 }
 
-async function salvarFormularioEquatorial() {
+async function salvarFormularioEquatorial(opcoes = {}) {
+  const silencioso = Boolean(opcoes.silencioso);
   if (!isAdmin()) {
     alert("Apenas administradores podem alterar os dados do formulario.");
-    return;
+    return false;
   }
 
   if (!projetoDetalheAtual) {
     alert("Nenhum projeto selecionado.");
-    return;
+    return false;
   }
 
   const payload = {};
@@ -1373,10 +1374,48 @@ async function salvarFormularioEquatorial() {
     }
 
     preencherFormularioEquatorial(data.formulario_equatorial);
-    alert("Dados do formulario Equatorial salvos com sucesso.");
+    if (!silencioso) {
+      alert("Dados do formulario Equatorial salvos com sucesso.");
+    }
+    return true;
   } catch (err) {
     console.error(err);
     alert(err.message || "Erro ao salvar os dados do formulario Equatorial.");
+    return false;
+  }
+}
+
+async function gerarFormularioEquatorial() {
+  if (!isAdmin() || !projetoDetalheAtual) {
+    alert("Apenas administradores podem gerar o formulario.");
+    return;
+  }
+
+  const salvo = await salvarFormularioEquatorial({ silencioso: true });
+  if (!salvo) return;
+
+  try {
+    const response = await apiFetch(`/projetos/${projetoDetalheAtual}/formulario-equatorial/gerar`);
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || "Erro ao gerar o formulario Equatorial.");
+    }
+
+    const blob = await response.blob();
+    const disposition = response.headers.get("content-disposition") || "";
+    const match = disposition.match(/filename="?([^";]+)"?/i);
+    const filename = match?.[1] || `formulario-equatorial-projeto-${projetoDetalheAtual}.xlsx`;
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error(err);
+    alert(err.message || "Erro ao gerar o formulario Equatorial.");
   }
 }
 

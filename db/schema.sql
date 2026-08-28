@@ -303,6 +303,7 @@ CREATE TABLE IF NOT EXISTS projeto_documentos (
   foto_inversor_instalado_path TEXT,
   foto_modulos_instalados_path TEXT,
   foto_conexao_ca_path TEXT,
+  lista_materiais_path TEXT,
   localizacao TEXT,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -320,6 +321,7 @@ ALTER TABLE projeto_documentos ADD COLUMN IF NOT EXISTS foto_placa_endereco_path
 ALTER TABLE projeto_documentos ADD COLUMN IF NOT EXISTS foto_inversor_instalado_path TEXT;
 ALTER TABLE projeto_documentos ADD COLUMN IF NOT EXISTS foto_modulos_instalados_path TEXT;
 ALTER TABLE projeto_documentos ADD COLUMN IF NOT EXISTS foto_conexao_ca_path TEXT;
+ALTER TABLE projeto_documentos ADD COLUMN IF NOT EXISTS lista_materiais_path TEXT;
 ALTER TABLE projeto_documentos ADD COLUMN IF NOT EXISTS localizacao TEXT;
 ALTER TABLE projeto_documentos ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 

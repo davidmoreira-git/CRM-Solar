@@ -15,6 +15,7 @@ let authToken = localStorage.getItem(TOKEN_KEY) || "";
 let currentUser = JSON.parse(localStorage.getItem(USER_KEY) || "null");
 let notificacoesTimer = null;
 let etapaNovoProjeto = 1;
+let materiaisProjetoCache = [];
 
 function setMensagem(elementId, message, type) {
   const element = document.getElementById(elementId);
@@ -1113,7 +1114,8 @@ async function abrirDetalhes(id) {
       data.observacoes,
       data.documentos,
       data.documento_links || {},
-      data.formulario_equatorial
+      data.formulario_equatorial,
+      data.materiais || []
     );
     document.getElementById("detalheOverlay").style.display = "block";
     document.body.style.overflow = "hidden";
@@ -1134,7 +1136,7 @@ function fecharDetalhes(event) {
   document.body.style.overflow = "";
 }
 
-function preencherDetalhes(projeto, historico, observacoes, documentos, documentoLinks, formularioEquatorial) {
+function preencherDetalhes(projeto, historico, observacoes, documentos, documentoLinks, formularioEquatorial, materiais) {
   document.getElementById("detalheTitulo").textContent = projeto.cliente_nome;
   document.getElementById("detalheStatus").textContent = `Status atual: ${formatarValor(projeto.status)}`;
   document.getElementById("detClienteNome").value = projeto.cliente_nome || "";
@@ -1163,6 +1165,7 @@ function preencherDetalhes(projeto, historico, observacoes, documentos, document
   document.getElementById("botaoExcluirProjeto").style.display = canDeleteProject() ? "inline-flex" : "none";
   preencherDocumentacao(documentos, documentoLinks);
   preencherFormularioEquatorial(formularioEquatorial);
+  preencherMateriais(materiais);
 
   if (!historico.length) {
     renderVazio("detalheHistorico", "Nenhuma mudanca de status registrada ainda.");
@@ -1193,6 +1196,107 @@ function preencherDetalhes(projeto, historico, observacoes, documentos, document
         `
       )
       .join("");
+  }
+}
+
+function navegarDetalhe(elementId) {
+  document.getElementById(elementId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function criarCampoMaterial(classe, valor, placeholder, tipo = "text") {
+  const input = document.createElement("input");
+  input.className = classe;
+  input.type = tipo;
+  input.value = valor ?? "";
+  input.placeholder = placeholder;
+  input.disabled = !canChangeStatus();
+  input.addEventListener("input", atualizarTotalMateriais);
+  return input;
+}
+
+function criarLinhaMaterial(material = {}) {
+  const linha = document.createElement("div");
+  linha.className = "material-item";
+  linha.appendChild(criarCampoMaterial("material-descricao", material.descricao, "Ex.: Módulo fotovoltaico"));
+  linha.appendChild(criarCampoMaterial("material-categoria", material.categoria, "Categoria"));
+  const quantidade = criarCampoMaterial("material-quantidade", material.quantidade ?? 1, "Qtd.", "number");
+  quantidade.min = "0.001";
+  quantidade.step = "0.001";
+  linha.appendChild(quantidade);
+
+  const unidade = document.createElement("select");
+  unidade.className = "material-unidade";
+  ["un", "kit", "m", "m²", "kg", "cx", "rolo"].forEach((valor) => {
+    const option = document.createElement("option");
+    option.value = valor;
+    option.textContent = valor;
+    option.selected = valor === (material.unidade || "un");
+    unidade.appendChild(option);
+  });
+  unidade.disabled = !canChangeStatus();
+  linha.appendChild(unidade);
+  linha.appendChild(criarCampoMaterial("material-observacao", material.observacao, "Marca, modelo ou observação"));
+
+  const remover = document.createElement("button");
+  remover.type = "button";
+  remover.className = "material-remover";
+  remover.textContent = "×";
+  remover.title = "Remover material";
+  remover.disabled = !canChangeStatus();
+  remover.addEventListener("click", () => {
+    linha.remove();
+    atualizarTotalMateriais();
+  });
+  linha.appendChild(remover);
+  return linha;
+}
+
+function preencherMateriais(materiais = []) {
+  materiaisProjetoCache = materiais;
+  const lista = document.getElementById("listaMateriais");
+  lista.innerHTML = "";
+  materiais.forEach((material) => lista.appendChild(criarLinhaMaterial(material)));
+  document.querySelector("#blocoMateriais .bloco-titulo-acoes button").style.display = canChangeStatus() ? "inline-flex" : "none";
+  document.getElementById("salvarMateriais").style.display = canChangeStatus() ? "inline-flex" : "none";
+  atualizarTotalMateriais();
+}
+
+function adicionarMaterial() {
+  if (!canChangeStatus()) return;
+  const lista = document.getElementById("listaMateriais");
+  lista.appendChild(criarLinhaMaterial());
+  lista.lastElementChild.querySelector(".material-descricao")?.focus();
+  atualizarTotalMateriais();
+}
+
+function atualizarTotalMateriais() {
+  const itens = document.querySelectorAll("#listaMateriais .material-item").length;
+  document.getElementById("materiaisVazio").style.display = itens ? "none" : "block";
+  document.getElementById("totalMateriais").textContent = `${itens} ${itens === 1 ? "item" : "itens"} na lista`;
+}
+
+async function salvarMateriais() {
+  if (!projetoDetalheAtual || !canChangeStatus()) return;
+  const materiais = [...document.querySelectorAll("#listaMateriais .material-item")].map((linha) => ({
+    descricao: linha.querySelector(".material-descricao").value.trim(),
+    categoria: linha.querySelector(".material-categoria").value.trim(),
+    quantidade: linha.querySelector(".material-quantidade").value,
+    unidade: linha.querySelector(".material-unidade").value,
+    observacao: linha.querySelector(".material-observacao").value.trim(),
+  })).filter((item) => item.descricao);
+
+  try {
+    const response = await apiFetch(`/projetos/${projetoDetalheAtual}/materiais`, {
+      method: "PUT",
+      body: JSON.stringify({ materiais }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Erro ao salvar materiais.");
+    preencherMateriais(data.materiais || []);
+    alert("Lista de materiais salva com sucesso.");
+  } catch (err) {
+    console.error(err);
+    alert(err.message || "Erro ao salvar lista de materiais.");
   }
 }
 

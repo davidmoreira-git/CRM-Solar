@@ -959,7 +959,7 @@ function novoProjeto() {
 
   etapaNovoProjeto = 1;
   irParaEtapaProjeto(1);
-  document.getElementById("modal").style.display = "block";
+  document.getElementById("modal").style.display = "flex";
   document.body.style.overflow = "hidden";
 }
 

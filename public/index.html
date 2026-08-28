@@ -677,6 +677,15 @@ button.perigo {
 /* Cadastro de projeto em etapas */
 #modal.project-wizard{display:none;position:fixed;inset:18px;transform:none;width:auto;max-height:none;padding:0;overflow:hidden;background:#111820;border:1px solid rgba(255,255,255,.08);border-top:3px solid #ed7e19;border-radius:18px;box-shadow:0 30px 80px rgba(0,0,0,.55);color:#eef2f6;z-index:1300}.wizard-header{display:flex;align-items:flex-start;justify-content:space-between;padding:22px 28px 16px;border-bottom:1px solid rgba(255,255,255,.06)}.wizard-kicker{color:#ed871f;font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}.wizard-header h2{margin:5px 0 3px;font-size:22px}.wizard-header p{margin:0;color:#738094;font-size:12px}.wizard-close{width:38px;height:38px;padding:0;background:#1c2530;color:#9da8b5;font-size:24px;border:1px solid rgba(255,255,255,.07)}.wizard-steps{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;padding:18px 28px 10px}.wizard-step{position:relative;display:grid;grid-template-columns:32px 1fr;grid-template-rows:auto auto;column-gap:10px;padding:14px;background:#19212b;color:#8d99a9;border:1px solid rgba(255,255,255,.05);text-align:left}.wizard-step span{grid-row:1/3;width:30px;height:30px;display:grid;place-items:center;border-radius:9px;background:#242e3a;color:#7f8b9a;font-size:10px}.wizard-step strong{color:#bdc5cf;font-size:12px}.wizard-step small{font-size:10px;color:#667386}.wizard-step.ativo{background:linear-gradient(135deg,#f18a25,#db6f0e);border-color:#fa952f;color:white;box-shadow:0 10px 24px rgba(228,111,12,.18)}.wizard-step.ativo span{background:rgba(18,24,32,.22);color:white}.wizard-step.ativo strong,.wizard-step.ativo small{color:white}.wizard-body{height:calc(100vh - 260px);min-height:330px;overflow-y:auto;padding:24px 30px}.wizard-panel{display:none;max-width:1120px;margin:0 auto}.wizard-panel.ativo{display:block}.wizard-section-title{display:flex;align-items:center;gap:13px;margin-bottom:24px}.wizard-section-title>span{width:38px;height:38px;display:grid;place-items:center;border-radius:11px;background:rgba(237,126,25,.12);color:#f28b25;font-weight:800;font-size:12px}.wizard-section-title h3{margin:0;color:#f4f7fa;font-size:17px}.wizard-section-title p{margin:4px 0 0;color:#718093;font-size:11px}.wizard-form-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px}.wizard-form-grid label{position:relative;display:flex;flex-direction:column;gap:8px;color:#c7cfd9;font-size:11px;font-weight:700}.wizard-form-grid label em{color:#ed7e19;font-style:normal}.wizard-form-grid label.span-2{grid-column:span 2}.wizard-form-grid .span-4{grid-column:1/-1}.project-wizard input,.project-wizard select{margin:0!important;padding:13px 14px!important;background:#202832!important;border:1px solid rgba(255,255,255,.08)!important;color:#edf1f5!important;border-radius:9px!important;outline:none}.project-wizard input:focus,.project-wizard select:focus{border-color:#ed7e19!important;box-shadow:0 0 0 3px rgba(237,126,25,.1)}.wizard-form-grid label>small{position:absolute;right:12px;bottom:13px;color:#687688;font-weight:500}.wizard-info{display:flex;gap:12px;padding:16px;border:1px solid rgba(237,126,25,.16);border-radius:12px;background:rgba(237,126,25,.06);font-size:11px}.wizard-info strong{color:#f09236}.wizard-info span{color:#7d8a9b}.wizard-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.summary-item{padding:16px;background:#19212b;border:1px solid rgba(255,255,255,.06);border-radius:12px}.summary-item span,.summary-item strong{display:block}.summary-item span{color:#718093;font-size:10px;text-transform:uppercase;letter-spacing:.08em}.summary-item strong{margin-top:7px;color:#edf1f5;font-size:13px}.wizard-footer{display:flex;justify-content:space-between;align-items:center;padding:15px 28px;border-top:1px solid rgba(255,255,255,.07);background:#10161e}.wizard-footer>div{display:flex;gap:10px}.wizard-footer button{min-width:120px}.wizard-footer button.secundario{background:#202832;color:#aeb7c3}.wizard-error{border-color:#df4b55!important;box-shadow:0 0 0 3px rgba(223,75,85,.1)!important}
 @media(max-width:900px){#modal.project-wizard{inset:8px}.wizard-steps{grid-template-columns:repeat(5,minmax(90px,1fr));overflow-x:auto;padding:12px}.wizard-step{display:block;min-width:105px}.wizard-step span{margin-bottom:7px}.wizard-step small{display:none}.wizard-body{padding:20px;height:calc(100vh - 235px)}.wizard-form-grid{grid-template-columns:1fr 1fr}.wizard-summary{grid-template-columns:1fr 1fr}}@media(max-width:560px){.wizard-header{padding:16px}.wizard-header p{display:none}.wizard-form-grid{grid-template-columns:1fr}.wizard-form-grid label.span-2,.wizard-form-grid .span-4{grid-column:auto}.wizard-summary{grid-template-columns:1fr}.wizard-footer{padding:12px}.wizard-footer>button{display:none}.wizard-footer>div{width:100%}.wizard-footer button{flex:1;min-width:0}}
+/* Ajustes finos de alinhamento do cadastro */
+#modal.project-wizard{flex-direction:column}
+.project-wizard .wizard-header,.project-wizard .wizard-steps,.project-wizard .wizard-footer{flex:0 0 auto}
+.project-wizard .wizard-body{flex:1 1 auto;height:auto;min-height:0;padding-top:28px;padding-bottom:28px}
+.project-wizard .wizard-panel{width:100%;max-width:1384px}
+.project-wizard .wizard-form-grid label>span{display:block;min-height:16px}
+.project-wizard .wizard-form-grid label em{display:inline;position:static;margin-left:3px}
+.project-wizard .wizard-footer{min-height:68px}
+@media(max-width:900px){.project-wizard .wizard-body{height:auto;min-height:0}}
 </style>
 </head>
 
@@ -837,10 +846,10 @@ button.perigo {
   </div>
   <div class="wizard-body">
     <section class="wizard-panel ativo" data-panel="1"><div class="wizard-section-title"><span>01</span><div><h3>Informações do cliente</h3><p>Identificação e canais de contato.</p></div></div><div class="wizard-form-grid">
-      <label class="span-2">Nome / Razão social <em>*</em><input id="nome" placeholder="Nome completo ou razão social"></label>
+      <label class="span-2"><span>Nome / Razão social <em>*</em></span><input id="nome" placeholder="Nome completo ou razão social"></label>
       <label>CPF / CNPJ<input id="documento" placeholder="000.000.000-00"></label>
       <label>Tipo de projeto<select id="tipo"><option>Residencial</option><option>Comercial</option><option>Rural</option></select></label>
-      <label>Telefone<input id="telefone" placeholder="(00) 00000-0000"></label>
+      <label class="span-2">Telefone<input id="telefone" placeholder="(00) 00000-0000"></label>
       <label class="span-2">E-mail<input id="emailCliente" type="email" placeholder="cliente@exemplo.com"></label>
     </div></section>
     <section class="wizard-panel" data-panel="2"><div class="wizard-section-title"><span>02</span><div><h3>Endereço da unidade</h3><p>Localização onde o sistema será instalado.</p></div></div><div class="wizard-form-grid">
@@ -1202,7 +1211,7 @@ button.perigo {
   </div>
 </div>
 
-<script src="script.js?v=20260828-cadastro-em-etapas"></script>
+<script src="script.js?v=20260828-cadastro-alinhado"></script>
 
 </body>
 </html>

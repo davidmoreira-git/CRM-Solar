@@ -66,18 +66,26 @@ function limparSessao() {
 
 function atualizarUsuarioAtual() {
   const usuarioAtual = document.getElementById("usuarioAtual");
+  const nomeSidebar = document.getElementById("usuarioNomeSidebar");
+  const cargoSidebar = document.getElementById("usuarioCargoSidebar");
+  const avatar = document.getElementById("usuarioAvatar");
 
-  if (!usuarioAtual) {
-    return;
+  if (usuarioAtual) {
+    usuarioAtual.textContent = currentUser ? `${currentUser.nome} (${roleLabel(currentUser.role)})` : "";
   }
 
-  usuarioAtual.textContent = currentUser ? `${currentUser.nome} (${roleLabel(currentUser.role)})` : "";
+  if (nomeSidebar) nomeSidebar.textContent = currentUser?.nome || "Usuário";
+  if (cargoSidebar) cargoSidebar.textContent = roleLabel(currentUser?.role);
+  if (avatar) {
+    avatar.textContent = String(currentUser?.nome || "DM").split(/\s+/).slice(0, 2).map((parte) => parte[0]).join("").toUpperCase();
+  }
 }
 
 function atualizarPermissoesUI() {
   const botaoNovoProjeto = document.getElementById("botaoNovoProjeto");
   const botaoUsuarios = document.getElementById("botaoUsuarios");
   const tabLeads = document.getElementById("tabLeads");
+  const navLeads = document.getElementById("navLeads");
   const painelAvisoSenha = document.getElementById("avisoTrocaSenha");
   const botaoExcluir = document.getElementById("botaoExcluirProjeto");
 
@@ -91,6 +99,10 @@ function atualizarPermissoesUI() {
 
   if (tabLeads) {
     tabLeads.style.display = isAdmin() ? "inline-flex" : "none";
+  }
+
+  if (navLeads) {
+    navLeads.style.display = isAdmin() ? "flex" : "none";
   }
 
   if (painelAvisoSenha) {
@@ -369,6 +381,71 @@ function normalizarStatus(status) {
   return status === "Criando" ? "Tramitacao" : status;
 }
 
+function numeroProjeto(valor) {
+  const numero = Number(String(valor ?? 0).replace(",", "."));
+  return Number.isFinite(numero) ? numero : 0;
+}
+
+function renderDashboard() {
+  const total = projetosCache.length;
+  const concluidos = projetosCache.filter((projeto) => ["Aprovado", "Finalizado"].includes(projeto.status)).length;
+  const ativos = projetosCache.filter((projeto) => !["Aprovado", "Finalizado"].includes(projeto.status)).length;
+  const potencia = projetosCache.reduce((soma, projeto) => soma + numeroProjeto(projeto.potencia), 0);
+  const ano = new Date().getFullYear();
+  const meses = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+  const mensais = Array(12).fill(0);
+
+  projetosCache.forEach((projeto) => {
+    const data = new Date(projeto.created_at || projeto.updated_at || 0);
+    if (!Number.isNaN(data.getTime()) && data.getFullYear() === ano) mensais[data.getMonth()] += 1;
+  });
+
+  document.getElementById("dashProjetosAtivos").textContent = String(ativos);
+  document.getElementById("dashPotencia").textContent = `${potencia.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} kWp`;
+  document.getElementById("dashAprovados").textContent = String(concluidos);
+  document.getElementById("dashConversao").textContent = `${total ? Math.round((concluidos / total) * 100) : 0}%`;
+  document.getElementById("dashAno").textContent = String(ano);
+
+  const chart = document.getElementById("dashChart");
+  const largura = 720;
+  const altura = 230;
+  const margem = { x: 24, y: 18, baixo: 32 };
+  const maximo = Math.max(...mensais, 1);
+  const pontos = mensais.map((valor, indice) => ({
+    x: margem.x + indice * ((largura - margem.x * 2) / 11),
+    y: altura - margem.baixo - (valor / maximo) * (altura - margem.y - margem.baixo),
+    valor,
+  }));
+  const linha = pontos.map((ponto) => `${ponto.x},${ponto.y}`).join(" ");
+  const area = `${margem.x},${altura - margem.baixo} ${linha} ${largura - margem.x},${altura - margem.baixo}`;
+  chart.innerHTML = `<svg viewBox="0 0 ${largura} ${altura}" role="img" aria-label="Projetos recebidos por mês">
+    <defs><linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ef811a" stop-opacity=".28"/><stop offset="1" stop-color="#ef811a" stop-opacity="0"/></linearGradient></defs>
+    ${[0, 1, 2, 3].map((i) => `<line class="chart-gridline" x1="${margem.x}" x2="${largura - margem.x}" y1="${margem.y + i * 54}" y2="${margem.y + i * 54}"/>`).join("")}
+    <polygon class="chart-area" points="${area}"/><polyline class="chart-line" points="${linha}"/>
+    ${pontos.map((ponto, i) => `<circle class="chart-point" cx="${ponto.x}" cy="${ponto.y}" r="4"><title>${meses[i]}: ${ponto.valor}</title></circle><text class="chart-label" x="${ponto.x}" y="${altura - 8}">${meses[i]}</text>`).join("")}
+  </svg>`;
+
+  const cores = { Documentacao: "#f59e42", Tramitacao: "#4e9ee8", Analise: "#b780f0", Aprovado: "#35c58a", Finalizado: "#86a0b9" };
+  const status = Object.keys(cores).map((nome) => ({ nome, total: projetosCache.filter((projeto) => projeto.status === nome).length }));
+  document.getElementById("dashStatus").innerHTML = status.map((item) => `<div class="status-item"><i class="status-color" style="background:${cores[item.nome]}"></i><span class="status-name">${item.nome}</span><strong class="status-count">${item.total}</strong><div class="status-bar"><span style="width:${total ? (item.total / total) * 100 : 0}%;background:${cores[item.nome]}"></span></div></div>`).join("");
+
+  const recentes = [...projetosCache].sort((a, b) => new Date(b.updated_at || b.created_at || 0) - new Date(a.updated_at || a.created_at || 0)).slice(0, 5);
+  document.getElementById("dashRecentes").innerHTML = recentes.length ? recentes.map((projeto) => `<button class="recent-row" type="button" onclick="abrirDetalhes(${projeto.id})"><span class="recent-client"><strong>${projeto.cliente_nome}</strong><span>${projeto.cidade || "Cidade não informada"}</span></span><span class="recent-cell">${projeto.owner_name || projeto.vendedor || "Sem responsável"}</span><span class="recent-cell">${formatarPotencia(projeto.potencia)}</span><span class="status-pill">${projeto.status}</span></button>`).join("") : '<div class="empty-dashboard">Nenhum projeto cadastrado ainda.</div>';
+}
+
+function mostrarVisaoPrincipal(visao) {
+  if (visao === "leads" && !isAdmin()) visao = "dashboard";
+  ["Dashboard", "Projetos", "Leads"].forEach((nome) => {
+    document.getElementById(`painel${nome}`)?.classList.toggle("view-hidden", nome.toLowerCase() !== visao);
+    document.getElementById(`nav${nome}`)?.classList.toggle("ativo", nome.toLowerCase() === visao);
+  });
+  const titulos = { dashboard: ["Visão geral", "Acompanhe o desempenho da sua operação solar."], projetos: ["Projetos", "Gerencie o fluxo de homologação dos seus clientes."], leads: ["Leads do site", "Acompanhe e qualifique novas oportunidades comerciais."] };
+  document.getElementById("tituloVisao").textContent = titulos[visao][0];
+  document.getElementById("subtituloVisao").textContent = titulos[visao][1];
+  if (visao === "dashboard") renderDashboard();
+  if (visao === "leads") carregarLeads();
+}
+
 function renderVazio(elementId, mensagem) {
   const element = document.getElementById(elementId);
 
@@ -397,6 +474,7 @@ async function carregar() {
       status: normalizarStatus(projeto.status),
     }));
     aplicarFiltros();
+    renderDashboard();
 
     if (canManageUsers() && document.getElementById("usuariosOverlay").style.display === "block") {
       await carregarUsuarios();
@@ -632,22 +710,7 @@ function aplicarFiltros() {
 }
 
 function mostrarVisao(visao) {
-  if (visao === "leads" && !isAdmin()) {
-    visao = "projetos";
-  }
-
-  const mostrandoLeads = visao === "leads";
-
-  document.getElementById("painelProjetos").style.display = mostrandoLeads ? "none" : "block";
-  document.getElementById("painelLeads").style.display = mostrandoLeads ? "block" : "none";
-  document.getElementById("tabProjetos").classList.toggle("ativo", !mostrandoLeads);
-  document.getElementById("tabProjetos").classList.toggle("secundario", mostrandoLeads);
-  document.getElementById("tabLeads").classList.toggle("ativo", mostrandoLeads);
-  document.getElementById("tabLeads").classList.toggle("secundario", !mostrandoLeads);
-
-  if (mostrandoLeads) {
-    carregarLeads();
-  }
+  mostrarVisaoPrincipal(visao);
 }
 
 async function carregarLeads() {

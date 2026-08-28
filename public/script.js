@@ -1119,8 +1119,7 @@ async function abrirDetalhes(id) {
       data.observacoes,
       data.documentos,
       data.documento_links || {},
-      data.formulario_equatorial,
-      data.materiais || []
+      data.formulario_equatorial
     );
     document.getElementById("detalheOverlay").style.display = "block";
     document.body.style.overflow = "hidden";
@@ -1141,7 +1140,7 @@ function fecharDetalhes(event) {
   document.body.style.overflow = "";
 }
 
-function preencherDetalhes(projeto, historico, observacoes, documentos, documentoLinks, formularioEquatorial, materiais) {
+function preencherDetalhes(projeto, historico, observacoes, documentos, documentoLinks, formularioEquatorial) {
   document.getElementById("detalheTitulo").textContent = projeto.cliente_nome;
   document.getElementById("detalheStatus").textContent = `Status atual: ${formatarValor(projeto.status)}`;
   document.getElementById("detClienteNome").value = projeto.cliente_nome || "";
@@ -1170,7 +1169,6 @@ function preencherDetalhes(projeto, historico, observacoes, documentos, document
   document.getElementById("botaoExcluirProjeto").style.display = canDeleteProject() ? "inline-flex" : "none";
   preencherDocumentacao(documentos, documentoLinks);
   preencherFormularioEquatorial(formularioEquatorial);
-  preencherMateriais(materiais);
 
   if (!historico.length) {
     renderVazio("detalheHistorico", "Nenhuma mudanca de status registrada ainda.");
@@ -1407,6 +1405,7 @@ function limparArquivosDocumentacao() {
     "docInversorInstalado",
     "docModulosInstalados",
     "docConexaoCa",
+    "docListaMateriais",
   ].forEach((id) => {
     const input = document.getElementById(id);
     if (input) {
@@ -1430,6 +1429,7 @@ function preencherDocumentacao(documentos, documentoLinks) {
   preencherLinkDocumento("linkInversorInstalado", documentoLinks.foto_inversor_instalado, "foto_inversor_instalado");
   preencherLinkDocumento("linkModulosInstalados", documentoLinks.foto_modulos_instalados, "foto_modulos_instalados");
   preencherLinkDocumento("linkConexaoCa", documentoLinks.foto_conexao_ca, "foto_conexao_ca");
+  preencherLinkDocumento("linkListaMateriais", documentoLinks.lista_materiais, "lista_materiais");
   preencherBotaoRemover("removerCnh", Boolean(documentos?.cnh_path));
   preencherBotaoRemover("removerTalaoEnergia", Boolean(documentos?.talao_energia_path));
   preencherBotaoRemover("removerProcuracao", Boolean(documentos?.procuracao_path));
@@ -1443,6 +1443,7 @@ function preencherDocumentacao(documentos, documentoLinks) {
   preencherBotaoRemover("removerInversorInstalado", Boolean(documentos?.foto_inversor_instalado_path));
   preencherBotaoRemover("removerModulosInstalados", Boolean(documentos?.foto_modulos_instalados_path));
   preencherBotaoRemover("removerConexaoCa", Boolean(documentos?.foto_conexao_ca_path));
+  preencherBotaoRemover("removerListaMateriais", Boolean(documentos?.lista_materiais_path));
   limparArquivosDocumentacao();
 }
 
@@ -1603,6 +1604,7 @@ async function salvarDocumentacao() {
       ["foto_inversor_instalado", "docInversorInstalado"],
       ["foto_modulos_instalados", "docModulosInstalados"],
       ["foto_conexao_ca", "docConexaoCa"],
+      ["lista_materiais", "docListaMateriais"],
     ];
 
     camposArquivo.forEach(([campoApi, campoTela]) => {

@@ -700,6 +700,7 @@ button.perigo {
 .documento-item,.linha-item{background:#101720;border-color:rgba(255,255,255,.06);border-radius:11px}.linha-item{border-left:3px solid #ed7e19;color:#8e9bab}.linha-item strong{color:#dce2e9}.documento-ajuda,.vazio{color:#718093}.documento-link{color:#f08a27}.detalhe-bloco .secundario{background:#222c38;color:#b8c1cc}.detalhe-bloco .perigo{background:#832d35}
 .bloco-titulo-acoes{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:18px}.bloco-titulo-acoes h3{margin:0 0 4px}.bloco-titulo-acoes p{margin:0;color:#718093;font-size:11px}.bloco-titulo-acoes button{padding:9px 12px;font-size:11px}
 .materiais-cabecalho,.material-item{display:grid;grid-template-columns:minmax(190px,1.5fr) minmax(120px,.8fr) 78px 92px minmax(150px,1fr) 36px;gap:9px;align-items:center}.materiais-cabecalho{padding:0 8px 8px;color:#687688;font-size:9px;font-weight:800;letter-spacing:.07em;text-transform:uppercase}.materiais-lista{display:grid;gap:8px}.material-item{padding:9px;background:#101720;border:1px solid rgba(255,255,255,.06);border-radius:11px}.material-item input,.material-item select{width:100%;min-width:0;padding:10px;background:#1c2530;color:#e6ebf1;border:1px solid rgba(255,255,255,.07);border-radius:8px}.material-item input:focus,.material-item select:focus{outline:none;border-color:#ed7e19}.material-remover{width:34px;height:34px;padding:0;background:transparent;color:#d06c75;border:1px solid rgba(208,108,117,.18)}.materiais-vazio{padding:28px;text-align:center;border:1px dashed rgba(255,255,255,.09);border-radius:11px;color:#667487;font-size:12px}.materiais-rodape{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:16px;padding-top:15px;border-top:1px solid rgba(255,255,255,.06)}.materiais-rodape span{color:#748194;font-size:11px}
+.material-upload-card{padding:18px;background:#101720;border:1px dashed rgba(237,126,25,.32);border-radius:12px}.material-upload-card label{display:block;margin-bottom:9px;color:#dce3ea;font-size:12px;font-weight:700}.material-upload-card input{display:block;width:100%;padding:11px;background:#1c2530;color:#dce3ea;border:1px solid rgba(255,255,255,.08);border-radius:9px}.material-upload-card .documento-acoes{margin-top:13px}
 @media(max-width:1050px){.detalhe-layout{grid-template-columns:1fr}.materiais-cabecalho{display:none}.material-item{grid-template-columns:1fr 1fr 80px 90px}.material-item .material-observacao{grid-column:1/4}.material-remover{grid-column:4;grid-row:2}}@media(max-width:650px){.detalhe-topo,.detalhe-nav,.detalhe-corpo{padding-left:14px;padding-right:14px}.detalhe-topo h2{font-size:20px}.detalhe-form{grid-template-columns:1fr}.detalhe-form .full{grid-column:auto}.material-item{grid-template-columns:1fr 1fr}.material-item .material-descricao,.material-item .material-observacao{grid-column:1/-1}.material-remover{grid-column:2;grid-row:auto;justify-self:end}.materiais-rodape{align-items:stretch;flex-direction:column}.materiais-rodape button{width:100%}}
 /* Kanban com contraste e distribuição aprimorados */
 .app-main .kanban{grid-template-columns:repeat(5,minmax(270px,1fr));gap:16px;overflow-x:auto;padding:2px 2px 18px;scrollbar-color:#394554 #111820;scrollbar-width:thin}
@@ -1021,11 +1022,17 @@ button.perigo {
           </div>
 
           <div class="detalhe-bloco materiais-bloco" id="blocoMateriais">
-            <div class="bloco-titulo-acoes"><div><h3>Lista de materiais</h3><p>Equipamentos e insumos previstos para este projeto.</p></div><button type="button" onclick="adicionarMaterial()">+ Adicionar item</button></div>
-            <div class="materiais-cabecalho"><span>Material</span><span>Categoria</span><span>Qtd.</span><span>Unidade</span><span>Observação</span><span></span></div>
-            <div id="listaMateriais" class="materiais-lista"></div>
-            <div id="materiaisVazio" class="materiais-vazio">Nenhum material adicionado. Use “Adicionar item” para começar.</div>
-            <div class="materiais-rodape"><span id="totalMateriais">0 itens na lista</span><button id="salvarMateriais" type="button" onclick="salvarMateriais()">Salvar lista de materiais</button></div>
+            <div class="bloco-titulo-acoes"><div><h3>Lista de materiais</h3><p>Anexe a relação de equipamentos e insumos deste projeto.</p></div></div>
+            <div class="material-upload-card">
+              <label for="docListaMateriais">Arquivo da lista de materiais</label>
+              <input id="docListaMateriais" type="file" accept=".pdf,.png,application/pdf,image/png">
+              <div class="documento-ajuda">Formatos aceitos: PDF ou PNG. Enviar um novo arquivo substitui o atual.</div>
+              <div class="documento-acoes">
+                <button id="linkListaMateriais" class="documento-link" type="button" style="display:none;">Ver arquivo</button>
+                <button id="removerListaMateriais" class="secundario" type="button" onclick="removerDocumento('lista_materiais')" style="display:none;">Remover</button>
+              </div>
+            </div>
+            <div class="materiais-rodape"><span>O arquivo fica salvo junto aos documentos do projeto.</span><button type="button" onclick="salvarDocumentacao()">Salvar lista de materiais</button></div>
           </div>
 
           <div class="detalhe-bloco" id="blocoEquatorial">
@@ -1272,7 +1279,7 @@ button.perigo {
   </div>
 </div>
 
-<script src="script.js?v=20260828-kanban-responsivo"></script>
+<script src="script.js?v=20260828-material-anexo"></script>
 
 </body>
 </html>

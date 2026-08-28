@@ -139,6 +139,7 @@ const DOCUMENT_FIELD_MAP = {
   foto_inversor_instalado: "foto_inversor_instalado_path",
   foto_modulos_instalados: "foto_modulos_instalados_path",
   foto_conexao_ca: "foto_conexao_ca_path",
+  lista_materiais: "lista_materiais_path",
 };
 
 app.use(cors());
@@ -2069,6 +2070,7 @@ app.get("/projetos/:id", authRequired, async (req, res) => {
          foto_inversor_instalado_path,
          foto_modulos_instalados_path,
          foto_conexao_ca_path,
+         lista_materiais_path,
          localizacao,
          updated_at
        FROM projeto_documentos
@@ -2607,6 +2609,7 @@ app.post(
     { name: "foto_inversor_instalado", maxCount: 1 },
     { name: "foto_modulos_instalados", maxCount: 1 },
     { name: "foto_conexao_ca", maxCount: 1 },
+    { name: "lista_materiais", maxCount: 1 },
   ]),
   async (req, res) => {
     const { id } = req.params;
@@ -2659,6 +2662,8 @@ app.post(
             normalizeFilePath(arquivos.foto_modulos_instalados?.[0]) || atual.foto_modulos_instalados_path || null,
           foto_conexao_ca_path:
             normalizeFilePath(arquivos.foto_conexao_ca?.[0]) || atual.foto_conexao_ca_path || null,
+          lista_materiais_path:
+            normalizeFilePath(arquivos.lista_materiais?.[0]) || atual.lista_materiais_path || null,
           localizacao:
             localizacao !== undefined ? localizacao : atual.localizacao || null,
         };
@@ -2680,11 +2685,12 @@ app.post(
             foto_inversor_instalado_path,
             foto_modulos_instalados_path,
             foto_conexao_ca_path,
+            lista_materiais_path,
             localizacao,
             updated_at
           )
           VALUES
-          ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW())
+          ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW())
           ON CONFLICT (projeto_id)
           DO UPDATE SET
             cnh_path = EXCLUDED.cnh_path,
@@ -2700,6 +2706,7 @@ app.post(
             foto_inversor_instalado_path = EXCLUDED.foto_inversor_instalado_path,
             foto_modulos_instalados_path = EXCLUDED.foto_modulos_instalados_path,
             foto_conexao_ca_path = EXCLUDED.foto_conexao_ca_path,
+            lista_materiais_path = EXCLUDED.lista_materiais_path,
             localizacao = EXCLUDED.localizacao,
             updated_at = NOW()
           RETURNING *`,
@@ -2718,6 +2725,7 @@ app.post(
             values.foto_inversor_instalado_path,
             values.foto_modulos_instalados_path,
             values.foto_conexao_ca_path,
+            values.lista_materiais_path,
             values.localizacao,
           ]
         );

@@ -14,6 +14,7 @@ let notificacoesCache = [];
 let authToken = localStorage.getItem(TOKEN_KEY) || "";
 let currentUser = JSON.parse(localStorage.getItem(USER_KEY) || "null");
 let notificacoesTimer = null;
+let etapaNovoProjeto = 1;
 
 function setMensagem(elementId, message, type) {
   const element = document.getElementById(elementId);
@@ -956,14 +957,78 @@ function novoProjeto() {
       .catch((err) => alert(err.message || "Erro ao carregar usuarios."));
   }
 
+  etapaNovoProjeto = 1;
+  irParaEtapaProjeto(1);
   document.getElementById("modal").style.display = "block";
+  document.body.style.overflow = "hidden";
 }
 
 function fecharModal() {
   document.getElementById("modal").style.display = "none";
+  document.body.style.overflow = "";
+}
+
+function valorCampoProjeto(id) {
+  const elemento = document.getElementById(id);
+  return elemento?.value?.trim() || "Não informado";
+}
+
+function atualizarResumoNovoProjeto() {
+  const resumo = document.getElementById("resumoNovoProjeto");
+  if (!resumo) return;
+  const itens = [
+    ["Cliente", valorCampoProjeto("nome")],
+    ["Documento", valorCampoProjeto("documento")],
+    ["Contato", valorCampoProjeto("telefone")],
+    ["Localização", [valorCampoProjeto("cidade"), valorCampoProjeto("estado")].filter((v) => v !== "Não informado").join(" / ") || "Não informado"],
+    ["Potência", valorCampoProjeto("potencia") === "Não informado" ? "Não informado" : `${valorCampoProjeto("potencia")} kWp`],
+    ["Ligação", valorCampoProjeto("ligacao")],
+    ["Concessionária", valorCampoProjeto("concessionaria")],
+    ["Valor", valorCampoProjeto("valor")],
+    ["Vendedor", valorCampoProjeto("vendedor")],
+  ];
+  resumo.innerHTML = itens.map(([rotulo, valor]) => `<div class="summary-item"><span>${rotulo}</span><strong>${valor}</strong></div>`).join("");
+}
+
+function irParaEtapaProjeto(etapa) {
+  etapaNovoProjeto = Math.min(5, Math.max(1, Number(etapa) || 1));
+  document.querySelectorAll(".wizard-panel").forEach((painel) => painel.classList.toggle("ativo", Number(painel.dataset.panel) === etapaNovoProjeto));
+  document.querySelectorAll(".wizard-step").forEach((botao) => botao.classList.toggle("ativo", Number(botao.dataset.step) === etapaNovoProjeto));
+  const anterior = document.getElementById("wizardAnterior");
+  const proximo = document.getElementById("wizardProximo");
+  const salvar = document.getElementById("wizardSalvar");
+  if (anterior) anterior.style.display = etapaNovoProjeto === 1 ? "none" : "inline-flex";
+  if (proximo) proximo.style.display = etapaNovoProjeto === 5 ? "none" : "inline-flex";
+  if (salvar) salvar.style.display = etapaNovoProjeto === 5 ? "inline-flex" : "none";
+  if (etapaNovoProjeto === 5) atualizarResumoNovoProjeto();
+}
+
+function validarEtapaProjeto() {
+  document.querySelectorAll(".wizard-error").forEach((campo) => campo.classList.remove("wizard-error"));
+  if (etapaNovoProjeto === 1 && !document.getElementById("nome").value.trim()) {
+    document.getElementById("nome").classList.add("wizard-error");
+    document.getElementById("nome").focus();
+    return false;
+  }
+  return true;
+}
+
+function proximaEtapaProjeto() {
+  if (!validarEtapaProjeto()) return;
+  irParaEtapaProjeto(etapaNovoProjeto + 1);
+}
+
+function etapaProjetoAnterior() {
+  irParaEtapaProjeto(etapaNovoProjeto - 1);
 }
 
 async function salvarProjeto() {
+  if (!document.getElementById("nome").value.trim()) {
+    irParaEtapaProjeto(1);
+    validarEtapaProjeto();
+    return;
+  }
+
   try {
     const response = await apiFetch("/projetos", {
       method: "POST",
@@ -994,6 +1059,7 @@ async function salvarProjeto() {
 
     fecharModal();
     limparFormularioProjeto();
+    irParaEtapaProjeto(1);
     await carregar();
   } catch (err) {
     console.error(err);

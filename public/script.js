@@ -1168,7 +1168,12 @@ function preencherDetalhes(projeto, historico, observacoes, documentos, document
   preencherSelectResponsavel("detOwnerProjeto", projeto.created_by || currentUser?.id);
   document.getElementById("botaoExcluirProjeto").style.display = canDeleteProject() ? "inline-flex" : "none";
   preencherDocumentacao(documentos, documentoLinks);
-  preencherFormularioEquatorial(formularioEquatorial);
+  const formularioAdmin = isAdmin();
+  document.getElementById("blocoEquatorial").style.display = formularioAdmin ? "block" : "none";
+  document.getElementById("navFormularioEquatorial").style.display = formularioAdmin ? "inline-flex" : "none";
+  if (formularioAdmin) {
+    preencherFormularioEquatorial(formularioEquatorial);
+  }
 
   if (!historico.length) {
     renderVazio("detalheHistorico", "Nenhuma mudanca de status registrada ainda.");
@@ -1341,6 +1346,11 @@ function preencherFormularioEquatorial(formulario) {
 }
 
 async function salvarFormularioEquatorial() {
+  if (!isAdmin()) {
+    alert("Apenas administradores podem alterar os dados do formulario.");
+    return;
+  }
+
   if (!projetoDetalheAtual) {
     alert("Nenhum projeto selecionado.");
     return;
